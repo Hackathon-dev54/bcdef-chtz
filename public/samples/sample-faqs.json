@@ -1,0 +1,32 @@
+[
+  {
+    "q": "Do you accept eSewa or Khalti?",
+    "a": "Yes! We accept eSewa, Khalti, Fonepay QR, bank transfer and Cash on Delivery (inside valley).",
+    "keywords": ["esewa", "khalti", "fonepay", "payment", "qr", "pay", "cod", "cash"]
+  },
+  {
+    "q": "Do you deliver outside Kathmandu valley?",
+    "a": "Yes, we deliver all over Nepal via courier in 2-4 days. Inside valley delivery is same day or next day.",
+    "keywords": ["deliver", "delivery", "courier", "outside valley", "pokhara", "chitwan", "bahira"]
+  },
+  {
+    "q": "What is the delivery charge?",
+    "a": "Inside valley Rs. 100. Outside valley Rs. 150-250 depending on location. Free delivery above Rs. 5000.",
+    "keywords": ["delivery charge", "shipping cost", "kati lagcha", "charge"]
+  },
+  {
+    "q": "What is your return or exchange policy?",
+    "a": "Exchange within 7 days with original bill and tags. No cash refund on sale items.",
+    "keywords": ["return", "exchange", "refund", "change", "size change"]
+  },
+  {
+    "q": "Where is your shop?",
+    "a": "New Road, Kathmandu (near Bishal Bazar, 2nd floor). Open Sun-Fri 10 AM - 7 PM.",
+    "keywords": ["location", "address", "where", "kaha", "shop", "map"]
+  },
+  {
+    "q": "Do you give wholesale price?",
+    "a": "Yes, wholesale rates are available for orders of 10+ pieces. Send your quantity and we will reply with a quote.",
+    "keywords": ["wholesale", "bulk", "dealer", "quantity"]
+  }
+]

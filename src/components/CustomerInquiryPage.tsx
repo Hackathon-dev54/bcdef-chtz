@@ -30,7 +30,7 @@ import {
   Compass,
 } from 'lucide-react'
 import { CHATZE_HUB_URL } from '../lib/hubConfig'
-import { evaluateClientFaq } from '../lib/clientFaqBot'
+import { evaluateClientFaq, type CustomFaq } from '../lib/clientFaqBot'
 import { compressImageToWebP } from './MessagingApp'
 
 interface ShopProfile {
@@ -47,6 +47,7 @@ interface ShopProfile {
   inquiryLetterboxEnabled: boolean
   hubListed?: boolean
   hubNodeId?: string
+  customFaqs?: CustomFaq[]
 }
 
 interface CustomerInquiryPageProps {
@@ -142,8 +143,26 @@ export function CustomerInquiryPage({
       deliveryInfo: profile.deliveryInfo,
       catalogTags: profile.catalogTags,
       bio: profile.bio,
+      customFaqs: profile.customFaqs || [],
     })
   }, [noteContent, profile])
+
+  // Quick chips: merchant's own FAQs first, otherwise built-in defaults
+  const faqChips = useMemo(() => {
+    const custom = profile?.customFaqs || []
+    if (custom.length) {
+      return custom.slice(0, 6).map((f) => ({
+        label: f.q.length > 32 ? `${f.q.slice(0, 30)}…` : f.q,
+        query: f.q,
+      }))
+    }
+    return [
+      { label: '📍 Store Location?', query: 'Where is your store located?' },
+      { label: '🕒 Opening Hours?', query: 'What are your opening hours?' },
+      { label: '🚚 Delivery Details?', query: 'Do you deliver inside or outside valley?' },
+      { label: '📞 Phone Number?', query: 'What is your contact phone number?' },
+    ]
+  }, [profile?.customFaqs])
 
   const messagesContainerRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -1239,12 +1258,7 @@ export function CustomerInquiryPage({
                     <span>Quick Questions (Instant 0ms Answer):</span>
                   </span>
                   <div className="flex flex-wrap gap-1.5">
-                    {[
-                      { label: '📍 Store Location?', query: 'Where is your store located?' },
-                      { label: '🕒 Opening Hours?', query: 'What are your opening hours?' },
-                      { label: '🚚 Delivery Details?', query: 'Do you deliver inside or outside valley?' },
-                      { label: '📞 Phone Number?', query: 'What is your contact phone number?' },
-                    ].map((chip, idx) => (
+                    {faqChips.map((chip, idx) => (
                       <button
                         key={idx}
                         type="button"

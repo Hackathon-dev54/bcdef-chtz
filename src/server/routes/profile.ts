@@ -11,6 +11,33 @@ function generatePin(): string {
   return `NP-${digits}`
 }
 
+const MAX_FAQS = 50
+const MAX_FAQ_JSON_BYTES = 30000
+
+function sanitizeFaqs(input: any): { q: string; a: string; keywords?: string[] }[] {
+  if (!Array.isArray(input)) return []
+  const out: { q: string; a: string; keywords?: string[] }[] = []
+  for (const item of input.slice(0, MAX_FAQS)) {
+    const q = String(item?.q ?? '').trim().slice(0, 400)
+    const a = String(item?.a ?? '').trim().slice(0, 800)
+    if (!q || !a) continue
+    const keywords = Array.isArray(item?.keywords)
+      ? item.keywords.map((k: any) => String(k).trim().toLowerCase().slice(0, 40)).filter(Boolean).slice(0, 20)
+      : undefined
+    out.push(keywords && keywords.length ? { q, a, keywords } : { q, a })
+  }
+  return out
+}
+
+function safeParseFaqs(raw: string | undefined | null) {
+  if (!raw) return []
+  try {
+    return sanitizeFaqs(JSON.parse(raw))
+  } catch {
+    return []
+  }
+}
+
 // GET Current Profile & Privacy Settings
 profileRoutes.get('/api/profile', async (c) => {
   const db = c.env?.DB
@@ -40,13 +67,14 @@ profileRoutes.get('/api/profile', async (c) => {
     hubListed: memoryStore.config.get('hub_listed') !== 'false',
     hubNodeId: memoryStore.config.get('hub_node_id') || 'node_' + (user?.handle || 'admin'),
     instanceUrl: c.req.url.replace(/\/api\/.*$/, ''),
+    customFaqs: safeParseFaqs(memoryStore.config.get('custom_faqs')),
   }
 
   if (db) {
     try {
       await ensureD1Database(db)
       const { results } = await db.prepare(
-        "SELECT key, value FROM system_config WHERE key IN ('display_name', 'account_type', 'bio', 'business_category', 'business_phone', 'business_location', 'business_hours', 'delivery_info', 'catalog_tags', 'privacy_mode', 'friend_pin', 'inquiry_letterbox_enabled', 'hub_listed', 'hub_node_id')"
+        "SELECT key, value FROM system_config WHERE key IN ('display_name', 'account_type', 'bio', 'business_category', 'business_phone', 'business_location', 'business_hours', 'delivery_info', 'catalog_tags', 'privacy_mode', 'friend_pin', 'inquiry_letterbox_enabled', 'hub_listed', 'hub_node_id', 'custom_faqs')"
       ).all()
 
       if (Array.isArray(results)) {
@@ -65,6 +93,7 @@ profileRoutes.get('/api/profile', async (c) => {
           if (row.key === 'inquiry_letterbox_enabled') profile.inquiryLetterboxEnabled = row.value === 'true'
           if (row.key === 'hub_listed') profile.hubListed = row.value === 'true'
           if (row.key === 'hub_node_id') profile.hubNodeId = row.value
+          if (row.key === 'custom_faqs') profile.customFaqs = safeParseFaqs(row.value)
         }
       }
 
@@ -115,7 +144,18 @@ profileRoutes.post('/api/profile', async (c) => {
       friendPin,
       inquiryLetterboxEnabled,
       hubListed,
+      customFaqs,
     } = body
+
+    // Only touch custom FAQs when the client explicitly sends them
+    let cleanFaqsJson: string | null = null
+    if (customFaqs !== undefined) {
+      cleanFaqsJson = JSON.stringify(sanitizeFaqs(customFaqs))
+      if (cleanFaqsJson.length > MAX_FAQ_JSON_BYTES) {
+        return c.json({ error: 'FAQ list too large (max ~30KB / 50 entries)' }, 400)
+      }
+      memoryStore.config.set('custom_faqs', cleanFaqsJson)
+    }
 
     const cleanName = (displayName || '').trim() || 'Chatze User'
     const cleanAccountType = accountType === 'business' ? 'business' : 'personal'
@@ -176,6 +216,9 @@ profileRoutes.post('/api/profile', async (c) => {
           db.prepare("INSERT OR REPLACE INTO system_config (key, value) VALUES ('inquiry_letterbox_enabled', ?)").bind(cleanLetterbox),
           db.prepare("INSERT OR REPLACE INTO system_config (key, value) VALUES ('hub_listed', ?)").bind(cleanHubListed),
           db.prepare("UPDATE users SET display_name = ? WHERE role = 'admin'").bind(cleanName),
+          ...(cleanFaqsJson !== null
+            ? [db.prepare("INSERT OR REPLACE INTO system_config (key, value) VALUES ('custom_faqs', ?)").bind(cleanFaqsJson)]
+            : []),
         ])
       } catch (d1Err: any) {
         console.warn('[D1 Profile Save Warning]', d1Err?.message)
@@ -199,6 +242,7 @@ profileRoutes.post('/api/profile', async (c) => {
         inquiryLetterboxEnabled: cleanLetterbox === 'true',
         hubListed: cleanHubListed === 'true',
         instanceUrl: c.req.url.replace(/\/api\/.*$/, ''),
+        customFaqs: safeParseFaqs(memoryStore.config.get('custom_faqs')),
       },
     })
   } catch (err: any) {

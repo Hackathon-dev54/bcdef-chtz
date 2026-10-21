@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import {
   X,
   User,
@@ -21,6 +21,18 @@ import {
   Download,
 } from 'lucide-react'
 import { getHubStoreUrl } from '../lib/hubConfig'
+import { parseFaqText, type CustomFaq } from '../lib/clientFaqBot'
+
+function faqsToEditableText(faqs: CustomFaq[]): string {
+  if (!Array.isArray(faqs) || !faqs.length) return ''
+  return faqs
+    .map((f) => {
+      const lines = [`Q: ${f.q}`, `A: ${f.a}`]
+      if (f.keywords && f.keywords.length) lines.push(`K: ${f.keywords.join(', ')}`)
+      return lines.join('\n')
+    })
+    .join('\n\n')
+}
 
 export interface ProfileData {
   displayName: string
@@ -85,6 +97,30 @@ export function ProfileSettingsModal({
   const [hubSyncError, setHubSyncError] = useState('')
   const [instanceUrl, setInstanceUrl] = useState('')
 
+  // Merchant Custom FAQ Bot (paste or upload JSON / MD / TXT)
+  const [faqText, setFaqText] = useState('')
+  const [faqUploadError, setFaqUploadError] = useState('')
+  const parsedFaqs = useMemo(() => parseFaqText(faqText), [faqText])
+
+  const handleFaqFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFaqUploadError('')
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    if (!/\.(json|md|markdown|txt)$/i.test(file.name)) {
+      setFaqUploadError('Only .json, .md or .txt files are supported')
+      return
+    }
+    if (file.size > 50 * 1024) {
+      setFaqUploadError('File too large (max 50 KB)')
+      return
+    }
+    const reader = new FileReader()
+    reader.onload = () => setFaqText(String(reader.result || ''))
+    reader.onerror = () => setFaqUploadError('Could not read file')
+    reader.readAsText(file)
+  }
+
   // Copy feedbacks
   const [copiedLink, setCopiedLink] = useState(false)
   const [copiedPin, setCopiedPin] = useState(false)
@@ -118,6 +154,7 @@ export function ProfileSettingsModal({
             setHubListed(data.profile.hubListed !== false)
             setHubNodeId(data.profile.hubNodeId || '')
             setInstanceUrl(data.profile.instanceUrl || window.location.origin)
+            setFaqText(faqsToEditableText(data.profile.customFaqs || []))
           }
         }
       } catch (err: any) {
@@ -211,6 +248,7 @@ export function ProfileSettingsModal({
           friendPin,
           inquiryLetterboxEnabled,
           hubListed,
+          customFaqs: parsedFaqs,
         }),
       })
 
@@ -491,6 +529,76 @@ export function ProfileSettingsModal({
                           placeholder="e.g. Jackets, Hoodies, Wholesale, Cash on Delivery"
                           className="w-full px-3 py-2 bg-[#0b141a] border border-[#202c33] rounded-xl text-xs text-[#e9edef] placeholder-[#8696a0]/60 focus:outline-none focus:border-[#00a884]"
                         />
+                      </div>
+
+                      {/* Custom FAQ Bot (Zero-Invocation, runs in customer's browser) */}
+                      <div className="space-y-2 p-3 bg-[#0b141a]/60 border border-[#00a884]/30 rounded-xl">
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                          <label className="font-semibold text-[#00a884]">
+                            Letterbox FAQ Bot (Instant Answers)
+                          </label>
+                          <div className="flex items-center gap-1.5">
+                            <a
+                              href="/samples/sample-faqs.txt"
+                              download
+                              className="px-2 py-1 bg-[#202c33] hover:bg-[#2a3942] rounded-lg text-[10px] text-[#8696a0] hover:text-white"
+                            >
+                              Sample .txt
+                            </a>
+                            <a
+                              href="/samples/sample-faqs.json"
+                              download
+                              className="px-2 py-1 bg-[#202c33] hover:bg-[#2a3942] rounded-lg text-[10px] text-[#8696a0] hover:text-white"
+                            >
+                              Sample .json
+                            </a>
+                            <label
+                              htmlFor="faq-file-upload"
+                              className="px-2 py-1 bg-[#00a884] hover:bg-[#02906f] rounded-lg text-[10px] font-bold text-[#111b21] cursor-pointer"
+                            >
+                              Upload File
+                            </label>
+                            <input
+                              id="faq-file-upload"
+                              type="file"
+                              accept=".json,.md,.markdown,.txt,application/json,text/plain,text/markdown"
+                              onChange={handleFaqFileUpload}
+                              className="hidden"
+                            />
+                          </div>
+                        </div>
+                        <p className="text-[10px] text-[#8696a0] leading-relaxed">
+                          Paste or upload <strong>.json</strong>, <strong>.md</strong> or <strong>.txt</strong>. Use
+                          <code className="mx-1 text-[#00a884]">Q:</code> /
+                          <code className="mx-1 text-[#00a884]">A:</code> /
+                          <code className="mx-1 text-[#00a884]">K:</code>(keywords, optional). Customers get the answer instantly with zero server calls. Max 50 FAQs.
+                        </p>
+                        <textarea
+                          rows={7}
+                          value={faqText}
+                          onChange={(e) => setFaqText(e.target.value)}
+                          placeholder={'Q: Do you accept eSewa?\nA: Yes! eSewa, Khalti, Fonepay and Cash on Delivery.\nK: esewa, khalti, payment, qr\n\nQ: Return policy?\nA: Exchange within 7 days with bill.'}
+                          className="w-full px-3 py-2 bg-[#0b141a] border border-[#202c33] rounded-xl text-[11px] font-mono text-[#e9edef] placeholder-[#8696a0]/50 focus:outline-none focus:border-[#00a884] resize-y"
+                        />
+                        <div className="flex items-center justify-between text-[10px]">
+                          <span className={parsedFaqs.length ? 'text-[#00a884]' : 'text-[#8696a0]'}>
+                            {parsedFaqs.length
+                              ? `✓ ${parsedFaqs.length} FAQ${parsedFaqs.length > 1 ? 's' : ''} detected — click Save to publish`
+                              : faqText.trim()
+                              ? '⚠ No valid Q/A pairs detected yet'
+                              : 'No custom FAQs (built-in answers from your profile are used)'}
+                          </span>
+                          {faqText && (
+                            <button
+                              type="button"
+                              onClick={() => setFaqText('')}
+                              className="text-red-400 hover:underline cursor-pointer"
+                            >
+                              Clear
+                            </button>
+                          )}
+                        </div>
+                        {faqUploadError && <p className="text-[10px] text-red-400">{faqUploadError}</p>}
                       </div>
                     </>
                   )}
