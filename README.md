@@ -1,19 +1,19 @@
 # Chatze (Nepal Edition) — Zero-Setup Cloudflare Edge Architecture
 
-[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/Hackathon-dev54/abcd-chatz)
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/Hackathon-dev54/bcdef-chtz)
 [![License: Elastic-2.0](https://img.shields.io/badge/License-Elastic--2.0-blue.svg)](LICENSE)
-[![GitHub Repository](https://img.shields.io/badge/GitHub-Hackathon--dev54%2Fabcd--chatz-blue?logo=github)](https://github.com/Hackathon-dev54/abcd-chatz)
+[![GitHub Repository](https://img.shields.io/badge/GitHub-Hackathon--dev54%2Fbcdef--chtz-blue?logo=github)](https://github.com/Hackathon-dev54/bcdef-chtz)
 [![Cloudflare D1](https://img.shields.io/badge/Database-Cloudflare%20D1%20(5GB%20Free)-orange.svg)](https://developers.cloudflare.com/d1/)
 [![Edge Network](https://img.shields.io/badge/PoP-Kathmandu%20(KTM)%20Edge-blue.svg)](https://www.cloudflare.com/network/)
 
 > **100% Free-Forever, Zero-Setup, One-Click Deploy on Cloudflare with Zero External Accounts** (No Neon, No Vercel, No Redis required). Built specifically for high-volume businesses and shops in Nepal (handling 5,000–6,000 daily customers) and independent peer-to-peer federated instances.  
-> **Source Repository:** [https://github.com/Hackathon-dev54/abcd-chatz](https://github.com/Hackathon-dev54/abcd-chatz)
+> **Source Repository:** [https://github.com/Hackathon-dev54/bcdef-chtz](https://github.com/Hackathon-dev54/bcdef-chtz)
 
 ---
 
 ## 🚀 1-Click Deploy to Cloudflare (The 60-Second Setup)
 
-1. Click the **[Deploy to Cloudflare](https://deploy.workers.cloudflare.com/?url=https://github.com/Hackathon-dev54/abcd-chatz)** badge above.
+1. Click the **[Deploy to Cloudflare](https://deploy.workers.cloudflare.com/?url=https://github.com/Hackathon-dev54/bcdef-chtz)** badge above.
 2. Sign in to your Cloudflare account (100% Free).
 3. Cloudflare automatically reads `wrangler.jsonc`:
    - Provisions Cloudflare Native D1 database `chatze_db` (**5 GB Free SQLite Edge DB**).
@@ -32,7 +32,7 @@
 > **Only click the "Deploy to Cloudflare" button ONCE for initial setup.**  
 > Do **not** click the deploy button again to update your node — clicking it repeatedly tells Cloudflare to create brand new repositories in your account.
 
-When this core repository (`Hackathon-dev54/abcd-chatz`) releases new features or improvements, update your existing live shop in 1 click:
+When this core repository (`Hackathon-dev54/bcdef-chtz`) releases new features or improvements, update your existing live shop in 1 click:
 
 1. Open **your own GitHub repository** (the fork Cloudflare created on your account).
 2. Right below the green `< > Code` button, GitHub shows:  
@@ -151,8 +151,8 @@ This guarantees 100% of your daily request budget is reserved exclusively for do
 
 ```bash
 # Clone the repository
-git clone https://github.com/Hackathon-dev54/abcd-chatz.git
-cd abcd-chatz
+git clone https://github.com/Hackathon-dev54/bcdef-chtz.git
+cd bcdef-chtz
 
 # Install dependencies
 npm install
@@ -169,7 +169,7 @@ Visit `http://localhost:3000`. The Vite + Hono engine starts immediately with ze
 
 This software is licensed under the **Elastic License 2.0 (ELv2)**.  
 `SPDX-License-Identifier: Elastic-2.0`  
-Copyright (c) 2026 Chatze Contributors ([https://github.com/Hackathon-dev54/abcd-chatz](https://github.com/Hackathon-dev54/abcd-chatz)).
+Copyright (c) 2026 Chatze Contributors ([https://github.com/Hackathon-dev54/bcdef-chtz](https://github.com/Hackathon-dev54/bcdef-chtz)).
 
 ### Key Protections & Terms:
 * **Freedom to Use & Modify:** You are free to view, copy, modify, distribute, and self-host this software for your business, personal, and internal operational needs.

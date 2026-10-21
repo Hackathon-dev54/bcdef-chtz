@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Elastic-2.0
-// Copyright (c) 2026 Chatze Contributors (https://github.com/Hackathon-dev54/abcd-chatz)
+// Copyright (c) 2026 Chatze Contributors (https://github.com/Hackathon-dev54/bcdef-chtz)
 
 import { Hono } from 'hono'
 import { ensureD1Database } from '../db'
