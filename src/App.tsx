@@ -64,15 +64,18 @@ export function App() {
     async function checkState() {
       try {
         const storedToken = typeof window !== 'undefined' ? localStorage.getItem('chatze_auth_token') : null
+        const isSetupCompleted = typeof window !== 'undefined' && localStorage.getItem('chatze_setup_completed') === 'true'
 
-        // Fire setup status and auth session check concurrently in parallel
-        const setupPromise = fetch('/api/setup/status').then(async (res) => {
-          if (res.ok) {
-            const data = await res.json()
-            return data
-          }
-          return { setupRequired: true }
-        }).catch(() => ({ setupRequired: false }))
+        // If setup was already completed on this device, skip the /api/setup/status network invocation!
+        const setupPromise = (isSetupCompleted && storedToken)
+          ? Promise.resolve({ setupRequired: false })
+          : fetch('/api/setup/status').then(async (res) => {
+              if (res.ok) {
+                const data = await res.json()
+                return data
+              }
+              return { setupRequired: true }
+            }).catch(() => ({ setupRequired: false }))
 
         const sessionPromise = storedToken
           ? fetch('/api/auth/session', { headers: { Authorization: `Bearer ${storedToken}` } })

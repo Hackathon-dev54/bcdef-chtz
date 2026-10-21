@@ -77,7 +77,31 @@ export function MessagingApp({
     scrollToBottom,
   } = useChatScroll()
 
-  // 3. Live SSE & Local-First IndexedDB Delta-Sync Hook
+  // 3. Inquiries & Shop Letterbox Hook
+  const {
+    inquiries,
+    setInquiries,
+    pendingInquiryCount,
+    setPendingInquiryCount,
+    replyingInquiryId,
+    copiedShopLink,
+    inquiryActionToast,
+    fetchInquiries,
+    handleReplyInquiry,
+    handleDismissInquiry,
+    shopPortfolioUrl,
+    handleCopyShopUrl,
+    handleShareShopUrl,
+  } = useInquiriesManager({
+    currentDisplayName,
+    onAfterReply: async () => {
+      await runSync()
+      await loadConversations()
+    },
+    setInboxFilter,
+  })
+
+  // 4. Live SSE & Local-First IndexedDB Delta-Sync Hook (Consolidated 1-Hit Bootstrap)
   const {
     conversations,
     setConversations,
@@ -98,28 +122,16 @@ export function MessagingApp({
     scrollToBottom,
     setHasNewUnreadWhileScrolled,
     messagesContainerRef,
-  })
-
-  // 4. Inquiries & Shop Letterbox Hook
-  const {
-    inquiries,
-    pendingInquiryCount,
-    replyingInquiryId,
-    copiedShopLink,
-    inquiryActionToast,
-    fetchInquiries,
-    handleReplyInquiry,
-    handleDismissInquiry,
-    shopPortfolioUrl,
-    handleCopyShopUrl,
-    handleShareShopUrl,
-  } = useInquiriesManager({
-    currentDisplayName,
-    onAfterReply: async () => {
-      await runSync()
-      await loadConversations()
+    onBootstrapData: (data) => {
+      if (data.profile) {
+        setAccountType(data.profile.accountType || 'personal')
+        if (data.profile.friendPin) setMyFriendPin(data.profile.friendPin)
+      }
+      if (data.inquiries) {
+        setInquiries(data.inquiries)
+        setPendingInquiryCount(data.inquiries.filter((i: any) => i.status === 'pending').length)
+      }
     },
-    setInboxFilter,
   })
 
   // 5. Friendships & Federation Hook
@@ -186,20 +198,8 @@ export function MessagingApp({
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [])
 
-  // Profile, Mode & URL Handshake Initialization
+  // URL Handshake & Deep Link Initialization
   useEffect(() => {
-    fetch('/api/profile', { headers: getAuthHeaders() })
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.profile) {
-          setAccountType(data.profile.accountType || 'personal')
-          if (data.profile.friendPin) setMyFriendPin(data.profile.friendPin)
-        }
-      })
-      .catch(() => {})
-
-    fetchInquiries()
-
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search)
       const addParam = params.get('add')

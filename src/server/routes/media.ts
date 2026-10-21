@@ -146,26 +146,50 @@ const handleMediaUpload = async (c: any) => {
 mediaRoutes.post('/api/media/upload', handleMediaUpload)
 mediaRoutes.post('/api/media', handleMediaUpload)
 
-// Serve media file with security headers and caching
+// Serve media file with security headers and Cloudflare Edge Caching (0 Worker invocations after 1st hit)
 mediaRoutes.get('/api/media/:id', async (c) => {
   const id = c.req.param('id')
   if (!id || !isValidIdentifier(id)) {
     return c.text('Invalid media identifier', 400)
   }
 
-  // 1. Check in-memory cache
-  const cached = memoryStore.media.get(id)
-  if (cached && typeof cached.data !== 'string') {
-    return new Response(cached.data as any, {
+  // 0. Cloudflare Edge Cache: Serve directly from global PoP CDN (0ms, 0 Worker invocations)
+  let cache: any = null
+  let cacheKey: Request | null = null
+  try {
+    if (typeof caches !== 'undefined' && (caches as any).default) {
+      cache = (caches as any).default
+      cacheKey = new Request(c.req.url, { method: 'GET' })
+      const cached = await cache.match(cacheKey)
+      if (cached) {
+        return cached
+      }
+    }
+  } catch {}
+
+  const sendMediaResponse = (body: any, contentType: string) => {
+    const res = new Response(body, {
       status: 200,
       headers: {
-        'Content-Type': cached.contentType || 'image/webp',
+        'Content-Type': contentType || 'image/webp',
         'X-Content-Type-Options': 'nosniff',
         'Content-Security-Policy': "default-src 'none'; sandbox",
         'Cache-Control': 'public, max-age=31536000, immutable',
         'Access-Control-Allow-Origin': '*',
       },
     })
+    if (cache && cacheKey && c.executionCtx && typeof c.executionCtx.waitUntil === 'function') {
+      try {
+        c.executionCtx.waitUntil(cache.put(cacheKey, res.clone()))
+      } catch {}
+    }
+    return res
+  }
+
+  // 1. Check in-memory cache
+  const cached = memoryStore.media.get(id)
+  if (cached && typeof cached.data !== 'string') {
+    return sendMediaResponse(cached.data, cached.contentType || 'image/webp')
   }
 
   // 2. Check Cloudflare R2 bucket
@@ -173,16 +197,7 @@ mediaRoutes.get('/api/media/:id', async (c) => {
     try {
       const r2Obj = await c.env.MEDIA_BUCKET.get(id)
       if (r2Obj) {
-        return new Response(r2Obj.body as any, {
-          status: 200,
-          headers: {
-            'Content-Type': r2Obj.httpMetadata?.contentType || 'image/webp',
-            'X-Content-Type-Options': 'nosniff',
-            'Content-Security-Policy': "default-src 'none'; sandbox",
-            'Cache-Control': 'public, max-age=31536000, immutable',
-            'Access-Control-Allow-Origin': '*',
-          },
-        })
+        return sendMediaResponse(r2Obj.body, r2Obj.httpMetadata?.contentType || 'image/webp')
       }
     } catch (r2Err: any) {
       console.warn('[R2 Get Warning]', r2Err?.message)
@@ -199,16 +214,7 @@ mediaRoutes.get('/api/media/:id', async (c) => {
 
       if (blobRow && blobRow.data) {
         const bytes = blobRow.data instanceof Uint8Array ? blobRow.data : new Uint8Array(blobRow.data)
-        return new Response(bytes, {
-          status: 200,
-          headers: {
-            'Content-Type': blobRow.content_type || 'image/webp',
-            'X-Content-Type-Options': 'nosniff',
-            'Content-Security-Policy': "default-src 'none'; sandbox",
-            'Cache-Control': 'public, max-age=31536000, immutable',
-            'Access-Control-Allow-Origin': '*',
-          },
-        })
+        return sendMediaResponse(bytes, blobRow.content_type || 'image/webp')
       }
     } catch {}
 
@@ -228,17 +234,7 @@ mediaRoutes.get('/api/media/:id', async (c) => {
         for (let i = 0; i < binaryStr.length; i++) {
           bytes[i] = binaryStr.charCodeAt(i)
         }
-
-        return new Response(bytes, {
-          status: 200,
-          headers: {
-            'Content-Type': legacyRow.content_type || 'image/webp',
-            'X-Content-Type-Options': 'nosniff',
-            'Content-Security-Policy': "default-src 'none'; sandbox",
-            'Cache-Control': 'public, max-age=31536000, immutable',
-            'Access-Control-Allow-Origin': '*',
-          },
-        })
+        return sendMediaResponse(bytes, legacyRow.content_type || 'image/webp')
       }
     } catch {}
   }

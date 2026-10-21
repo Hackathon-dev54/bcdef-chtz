@@ -13,6 +13,7 @@ const pushRoutes = new Hono<{ Bindings: Bindings }>()
 // Web Push Notification Subscriptions API (Zero-Polling Background Alerts)
 pushRoutes.get('/api/push/vapid-public-key', async (c) => {
   const vapid = await getOrGenerateVapidKeys(c.env)
+  c.header('Cache-Control', 'public, max-age=31536000, immutable')
   return c.json({ publicKey: vapid.publicKey })
 })
 

@@ -5,7 +5,7 @@ import type { Bindings } from '../types'
 
 const conversationRoutes = new Hono<{ Bindings: Bindings }>()
 
-function resolveOtherUser(row: any, viewer: any, fallbackShopHandle: string, fallbackShopDisplayName: string) {
+export function resolveOtherUser(row: any, viewer: any, fallbackShopHandle: string, fallbackShopDisplayName: string) {
   const viewerHandle = (viewer?.handle || '').toLowerCase().replace(/^@/, '')
   const viewerId = viewer?.id || ''
   const userBHandle = (row.remote_handle || row.user_b || '').toLowerCase().replace(/^@/, '')

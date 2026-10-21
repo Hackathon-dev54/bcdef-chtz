@@ -35,6 +35,9 @@ export async function getExistingPushSubscription(): Promise<PushSubscription | 
   }
 }
 
+// Built-in P-256 WebPush VAPID Public Key (Zero-hit client constant)
+export const DEFAULT_VAPID_PUBLIC_KEY = 'BAV9SIwwOf2vhDMwhjs0H9To0hiJvc-BDRl1E3ZxV4p35Ykdw74vCo_Bpp1GfRAEnG2oQyD8vqH_dVywN0QHXZM'
+
 export async function subscribeToPushNotifications(userHandle: string): Promise<{ success: boolean; error?: string }> {
   if (!isPushSupported()) {
     return { success: false, error: 'Push notifications are not supported on this browser.' }
@@ -47,12 +50,16 @@ export async function subscribeToPushNotifications(userHandle: string): Promise<
       return { success: false, error: 'Notification permission was denied.' }
     }
 
-    // 2. Fetch server's VAPID public key
-    const res = await fetch('/api/push/vapid-public-key')
-    if (!res.ok) {
-      throw new Error('Failed to retrieve push encryption key from server')
+    // 2. Resolve VAPID public key (0ms static constant first; zero Worker invocations!)
+    let publicKey = ((import.meta as any).env?.VITE_VAPID_PUBLIC_KEY || DEFAULT_VAPID_PUBLIC_KEY)?.trim()
+    if (!publicKey) {
+      const res = await fetch('/api/push/vapid-public-key')
+      if (!res.ok) {
+        throw new Error('Failed to retrieve push encryption key from server')
+      }
+      const data = await res.json()
+      publicKey = data.publicKey
     }
-    const { publicKey } = await res.json()
     if (!publicKey) {
       throw new Error('Server returned empty public key')
     }

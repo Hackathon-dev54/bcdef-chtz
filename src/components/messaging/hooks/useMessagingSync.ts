@@ -19,12 +19,14 @@ export function useMessagingSync({
   scrollToBottom,
   setHasNewUnreadWhileScrolled,
   messagesContainerRef,
+  onBootstrapData,
 }: {
   currentUser: { id: string; handle: string; display_name: string; role?: string }
   onNewInquiry: () => void
   scrollToBottom: (behavior?: 'smooth' | 'instant') => void
   setHasNewUnreadWhileScrolled: (val: boolean) => void
   messagesContainerRef: React.RefObject<HTMLDivElement | null>
+  onBootstrapData?: (data: { profile?: any; inquiries?: any[] }) => void
 }) {
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [activeConv, setActiveConv] = useState<Conversation | null>(null)
@@ -52,7 +54,59 @@ export function useMessagingSync({
   const onNewInquiryRef = useRef(onNewInquiry)
   onNewInquiryRef.current = onNewInquiry
 
+  const onBootstrapDataRef = useRef(onBootstrapData)
+  onBootstrapDataRef.current = onBootstrapData
+
   const lastSyncTimeRef = useRef<number>(Date.now() - 3600000)
+
+  // 1-Hit Bootstrap: 0ms IndexedDB restore first, then single unified Worker invocation
+  const loadBootstrap = async () => {
+    try {
+      const [cachedConvs, cachedFriends] = await Promise.all([
+        getLocalConversations(),
+        getLocalFriendships(),
+      ])
+      if (cachedConvs.length > 0) {
+        setConversations(cachedConvs)
+        if (!activeConvRef.current) {
+          setActiveConv(cachedConvs[0])
+        }
+      }
+      if (cachedFriends.length > 0) {
+        setFriendships(cachedFriends)
+      }
+
+      // Single 1-hit bootstrap call to Cloudflare Worker
+      const res = await fetch('/api/bootstrap', { headers: getAuthHeaders() })
+      if (res.ok) {
+        const data = await res.json()
+        if (data.conversations) {
+          setConversations(data.conversations)
+          await saveLocalConversations(data.conversations)
+          if (!activeConvRef.current && data.conversations.length > 0) {
+            setActiveConv(data.conversations[0])
+          } else if (activeConvRef.current) {
+            const updated = data.conversations.find((c: any) => c.id === activeConvRef.current?.id)
+            if (updated) setActiveConv(updated)
+          }
+        }
+        if (data.friendships) {
+          setFriendships(data.friendships)
+          await saveLocalFriendships(data.friendships)
+        }
+        if (onBootstrapDataRef.current && (data.profile || data.inquiries)) {
+          onBootstrapDataRef.current({
+            profile: data.profile,
+            inquiries: data.inquiries,
+          })
+        }
+      }
+    } catch (err) {
+      console.warn('[Bootstrap Fallback to Individual Calls]', err)
+      loadConversations()
+      loadFriendships()
+    }
+  }
 
   // 1. Restore local data instantly from IndexedDB in 0ms (ZERO network calls)
   const loadConversations = async () => {
@@ -129,10 +183,9 @@ export function useMessagingSync({
     }
   }
 
-  // Load initial dataset once on mount
+  // Load initial dataset once on mount using 1-Hit Bootstrap
   useEffect(() => {
-    loadConversations()
-    loadFriendships()
+    loadBootstrap()
 
     // Restore last sync time if present
     getLocalMeta<number>('last_sync_time').then((ts) => {

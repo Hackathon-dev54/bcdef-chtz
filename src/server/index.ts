@@ -14,6 +14,7 @@ import pushRoutes from './routes/push'
 import streamRoutes from './routes/stream'
 import profileRoutes from './routes/profile'
 import inquiryRoutes from './routes/inquiries'
+import bootstrapRoutes from './routes/bootstrap'
 
 import { ensureServerKeyPair, signPayload, getExportedPublicKeyBase64 } from './crypto'
 import { memoryStore } from './store'
@@ -84,6 +85,7 @@ app.get('/.well-known/chatze-node.json', async (c) => {
   }
 
   const origin = new URL(c.req.url).origin
+  c.header('Cache-Control', 'public, max-age=86400')
 
   return c.json({
     protocol: 'chatze-letterbox-v1',
@@ -136,6 +138,7 @@ app.route('/', pushRoutes)
 app.route('/', streamRoutes)
 app.route('/', profileRoutes)
 app.route('/', inquiryRoutes)
+app.route('/', bootstrapRoutes)
 
 // Fallback to static assets in production on Cloudflare Workers
 app.all('*', async (c) => {
