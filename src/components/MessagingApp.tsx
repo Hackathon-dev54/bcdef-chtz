@@ -244,170 +244,174 @@ export function MessagingApp({
         }}
       />
 
-      <NotificationPermissionBanner userHandle={currentUser.handle} />
+      {!isSettingsOpen && <NotificationPermissionBanner userHandle={currentUser.handle} />}
 
       <div className="flex flex-1 w-full overflow-hidden">
-        {/* 1. Left Sidebar */}
-        <aside
-          className={`${
-            (activeConv || isSettingsOpen) ? 'hidden md:flex' : 'flex'
-          } w-full md:w-80 lg:w-96 border-r border-zinc-200 dark:border-zinc-800/80 bg-white dark:bg-[#121214] flex-col shrink-0 h-full transition-colors`}
-        >
-          {/* Header Bar */}
-          <SidebarHeader
+        {isSettingsOpen ? (
+          <SettingsPage
             currentUser={currentUser}
             currentDisplayName={currentDisplayName}
-            accountType={accountType}
+            onBack={() => setIsSettingsOpen(false)}
+            onProfileUpdated={(updated) => {
+              setCurrentDisplayName(updated.displayName)
+              setAccountType(updated.accountType)
+            }}
+            onOpenIdentityModal={() => setShowIdentityModal(true)}
+            onOpenPaymentQrModal={() => setShowQrModal(true)}
+            onLogout={onLogout}
             shopPortfolioUrl={shopPortfolioUrl}
-            copiedShopLink={copiedShopLink}
-            handleCopyShopUrl={handleCopyShopUrl}
-            handleShareShopUrl={handleShareShopUrl}
-            searchQuery={searchQuery}
-            setSearchQuery={setSearchQuery}
-            inboxFilter={inboxFilter}
-            setInboxFilter={setInboxFilter}
-            pendingInquiryCount={pendingInquiryCount}
-            inquiriesCount={inquiries.length}
-            totalChatsCount={conversations.length}
-            hasLetterboxActivity={hasLetterboxActivity}
-            onOpenConnectContact={() => setShowAddFriendModal(true)}
-            searchInputRef={searchInputRef}
           />
-
-          {/* Incoming Connection Requests Banner */}
-          <IncomingRequestsBanner
-            incomingRequests={incomingRequests}
-            handleAcceptFriendRequest={handleAcceptFriendRequest}
-            handleRejectFriendRequest={handleRejectFriendRequest}
-          />
-
-          {/* Chats or Inquiries Feed */}
-          <div className="flex-1 overflow-y-auto divide-y divide-zinc-100 dark:divide-zinc-800/40">
-            {inboxFilter === 'letterbox' || inboxFilter === 'inquiries' ? (
-              <InquiriesFeed
-                accountType={accountType}
+        ) : (
+          <>
+            {/* 1. Left Sidebar */}
+            <aside
+              className={`${
+                activeConv ? 'hidden md:flex' : 'flex'
+              } w-full md:w-80 lg:w-96 border-r border-zinc-200 dark:border-zinc-800/80 bg-white dark:bg-[#121214] flex-col shrink-0 h-full transition-colors`}
+            >
+              {/* Header Bar */}
+              <SidebarHeader
                 currentUser={currentUser}
-                inquiries={inquiries}
-                conversations={conversations}
-                filteredConversations={filteredConversations}
-                activeConv={activeConv}
-                setActiveConv={(conv) => {
-                  setIsSettingsOpen(false)
-                  setActiveConv(conv)
-                }}
-                handleReplyInquiry={handleReplyInquiry}
-                handleDismissInquiry={handleDismissInquiry}
-                replyingInquiryId={replyingInquiryId}
+                currentDisplayName={currentDisplayName}
+                accountType={accountType}
+                shopPortfolioUrl={shopPortfolioUrl}
+                copiedShopLink={copiedShopLink}
+                handleCopyShopUrl={handleCopyShopUrl}
+                handleShareShopUrl={handleShareShopUrl}
+                searchQuery={searchQuery}
+                setSearchQuery={setSearchQuery}
+                inboxFilter={inboxFilter}
+                setInboxFilter={setInboxFilter}
+                pendingInquiryCount={pendingInquiryCount}
+                inquiriesCount={inquiries.length}
+                totalChatsCount={conversations.length}
+                hasLetterboxActivity={hasLetterboxActivity}
+                onOpenConnectContact={() => setShowAddFriendModal(true)}
+                searchInputRef={searchInputRef}
+              />
+
+              {/* Incoming Connection Requests Banner */}
+              <IncomingRequestsBanner
+                incomingRequests={incomingRequests}
+                handleAcceptFriendRequest={handleAcceptFriendRequest}
+                handleRejectFriendRequest={handleRejectFriendRequest}
+              />
+
+              {/* Chats or Inquiries Feed */}
+              <div className="flex-1 overflow-y-auto divide-y divide-zinc-100 dark:divide-zinc-800/40">
+                {inboxFilter === 'letterbox' || inboxFilter === 'inquiries' ? (
+                  <InquiriesFeed
+                    accountType={accountType}
+                    currentUser={currentUser}
+                    inquiries={inquiries}
+                    conversations={conversations}
+                    filteredConversations={filteredConversations}
+                    activeConv={activeConv}
+                    setActiveConv={(conv) => {
+                      setIsSettingsOpen(false)
+                      setActiveConv(conv)
+                    }}
+                    handleReplyInquiry={handleReplyInquiry}
+                    handleDismissInquiry={handleDismissInquiry}
+                    replyingInquiryId={replyingInquiryId}
+                    onOpenProfile={() => setIsSettingsOpen(true)}
+                  />
+                ) : (
+                  <ConversationList
+                    conversations={filteredConversations}
+                    activeConv={activeConv}
+                    setActiveConv={(conv) => {
+                      setIsSettingsOpen(false)
+                      setActiveConv(conv)
+                    }}
+                    inboxFilter={inboxFilter}
+                    onOpenConnectContact={() => setShowAddFriendModal(true)}
+                  />
+                )}
+              </div>
+
+              {/* Bottom Pinned User Profile Footer */}
+              <SidebarFooter
+                currentUser={currentUser}
+                currentDisplayName={currentDisplayName}
                 onOpenProfile={() => setIsSettingsOpen(true)}
               />
-            ) : (
-              <ConversationList
-                conversations={filteredConversations}
-                activeConv={activeConv}
-                setActiveConv={(conv) => {
-                  setIsSettingsOpen(false)
-                  setActiveConv(conv)
-                }}
-                inboxFilter={inboxFilter}
-                onOpenConnectContact={() => setShowAddFriendModal(true)}
-              />
-            )}
-          </div>
+            </aside>
 
-          {/* Bottom Pinned User Profile Footer */}
-          <SidebarFooter
-            currentUser={currentUser}
-            currentDisplayName={currentDisplayName}
-            onOpenProfile={() => setIsSettingsOpen(true)}
-          />
-        </aside>
+            {/* 2. Main Panel: Active Chat or Empty State */}
+            <main
+              className={`${
+                !activeConv ? 'hidden md:flex' : 'flex'
+              } flex-1 flex-col bg-zinc-50/50 dark:bg-[#0e0e10] min-w-0 relative w-full h-full transition-colors`}
+            >
+              {activeConv ? (
+                <>
+                  {/* Active Header */}
+                  <ChatHeader
+                    activeConv={activeConv}
+                    accountType={accountType}
+                    currentUser={currentUser}
+                    streamConnected={streamConnected}
+                    onBack={() => setActiveConv(null)}
+                    onToggleSidebar={() => setShowContactSidebar(!showContactSidebar)}
+                    isSidebarOpen={showContactSidebar}
+                  />
 
-        {/* 2. Main Panel: Settings Page or Active Chat */}
-        <main
-          className={`${
-            (!activeConv && !isSettingsOpen) ? 'hidden md:flex' : 'flex'
-          } flex-1 flex-col bg-zinc-50/50 dark:bg-[#0e0e10] min-w-0 relative w-full h-full transition-colors`}
-        >
-          {isSettingsOpen ? (
-            <SettingsPage
-              currentUser={currentUser}
-              currentDisplayName={currentDisplayName}
-              onBack={() => setIsSettingsOpen(false)}
-              onProfileUpdated={(updated) => {
-                setCurrentDisplayName(updated.displayName)
-                setAccountType(updated.accountType)
-              }}
-              onOpenIdentityModal={() => setShowIdentityModal(true)}
-              onOpenPaymentQrModal={() => setShowQrModal(true)}
-              onLogout={onLogout}
-              shopPortfolioUrl={shopPortfolioUrl}
-            />
-          ) : activeConv ? (
-            <>
-              {/* Active Header */}
-              <ChatHeader
-                activeConv={activeConv}
-                accountType={accountType}
-                currentUser={currentUser}
-                streamConnected={streamConnected}
-                onBack={() => setActiveConv(null)}
-                onToggleSidebar={() => setShowContactSidebar(!showContactSidebar)}
-                isSidebarOpen={showContactSidebar}
-              />
+                  {/* Message Stream */}
+                  <ChatStreamView
+                    activeConv={activeConv}
+                    currentUser={currentUser}
+                    messages={messages}
+                    messagesContainerRef={messagesContainerRef}
+                    messagesEndRef={messagesEndRef}
+                    handleScroll={handleScroll}
+                    showScrollBottom={showScrollBottom}
+                    hasNewUnreadWhileScrolled={hasNewUnreadWhileScrolled}
+                    scrollToBottom={scrollToBottom}
+                    onOpenLightbox={(url) => setLightboxUrl(url)}
+                  />
 
-              {/* Message Stream */}
-              <ChatStreamView
+                  {/* Message Composer */}
+                  <ChatComposer
+                    activeConv={activeConv}
+                    inputText={inputText}
+                    setInputText={setInputText}
+                    handleSendMessage={handleSendMessage}
+                    handlePaste={handlePaste}
+                    handleFileInputChange={handleFileInputChange}
+                    fileInputRef={fileInputRef}
+                  />
+                </>
+              ) : (
+                <div className="flex-1 flex flex-col items-center justify-center text-center p-6 sm:p-8 space-y-4 max-w-sm mx-auto">
+                  <div className="p-4 rounded-3xl bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 shadow-xs">
+                    <MessageSquare className="w-10 h-10 sm:w-12 sm:h-12" />
+                  </div>
+                  <h3 className="text-base font-bold text-zinc-900 dark:text-zinc-100">Independent WhatsApp at Edge</h3>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
+                    Connect with any user across Cloudflare instances by adding their username and subdomain/domain.
+                  </p>
+                  <button
+                    onClick={() => setShowAddFriendModal(true)}
+                    className="py-2.5 px-4 bg-zinc-950 text-white dark:bg-white dark:text-zinc-950 hover:bg-zinc-800 dark:hover:bg-zinc-100 rounded-xl text-xs font-bold flex items-center gap-2 cursor-pointer shadow-xs transition-colors"
+                  >
+                    <UserPlus className="w-4 h-4" /> Connect Contact
+                  </button>
+                </div>
+              )}
+            </main>
+
+            {/* 3. Contact Detail Right Sidebar (Collapsible) */}
+            {activeConv && (
+              <ContactDetailSidebar
                 activeConv={activeConv}
-                currentUser={currentUser}
                 messages={messages}
-                messagesContainerRef={messagesContainerRef}
-                messagesEndRef={messagesEndRef}
-                handleScroll={handleScroll}
-                showScrollBottom={showScrollBottom}
-                hasNewUnreadWhileScrolled={hasNewUnreadWhileScrolled}
-                scrollToBottom={scrollToBottom}
+                isOpen={showContactSidebar}
+                onClose={() => setShowContactSidebar(false)}
                 onOpenLightbox={(url) => setLightboxUrl(url)}
               />
-
-              {/* Message Composer */}
-              <ChatComposer
-                activeConv={activeConv}
-                inputText={inputText}
-                setInputText={setInputText}
-                handleSendMessage={handleSendMessage}
-                handlePaste={handlePaste}
-                handleFileInputChange={handleFileInputChange}
-                fileInputRef={fileInputRef}
-              />
-            </>
-          ) : (
-            <div className="flex-1 flex flex-col items-center justify-center text-center p-6 sm:p-8 space-y-4 max-w-sm mx-auto">
-              <div className="p-4 rounded-3xl bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 shadow-xs">
-                <MessageSquare className="w-10 h-10 sm:w-12 sm:h-12" />
-              </div>
-              <h3 className="text-base font-bold text-zinc-900 dark:text-zinc-100">Independent WhatsApp at Edge</h3>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
-                Connect with any user across Cloudflare instances by adding their username and subdomain/domain.
-              </p>
-              <button
-                onClick={() => setShowAddFriendModal(true)}
-                className="py-2.5 px-4 bg-zinc-950 text-white dark:bg-white dark:text-zinc-950 hover:bg-zinc-800 dark:hover:bg-zinc-100 rounded-xl text-xs font-bold flex items-center gap-2 cursor-pointer shadow-xs transition-colors"
-              >
-                <UserPlus className="w-4 h-4" /> Connect Contact
-              </button>
-            </div>
-          )}
-        </main>
-
-        {/* 3. Contact Detail Right Sidebar (Collapsible) */}
-        {activeConv && (
-          <ContactDetailSidebar
-            activeConv={activeConv}
-            messages={messages}
-            isOpen={showContactSidebar}
-            onClose={() => setShowContactSidebar(false)}
-            onOpenLightbox={(url) => setLightboxUrl(url)}
-          />
+            )}
+          </>
         )}
       </div>
 
