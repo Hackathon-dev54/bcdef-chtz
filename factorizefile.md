@@ -8,9 +8,9 @@ This document outlines the systematic refactoring of monolithic UI components in
 
 | File | Current Lines | Target Structure | Status |
 | :--- | :--- | :--- | :--- |
-| **`src/components/CustomerInquiryPage.tsx`** | ~1,385 lines | `src/components/letterbox/` (Types, Audio, Header, Form, Pending, LiveChat) | 🟡 **Step 1 (In Progress)** |
-| **`src/components/ProfileSettingsModal.tsx`** | ~1,111 lines | `src/components/profile/` (AccountTab, PrivacyTab, HubTab, EdgeTab, FaqEditor) | ⚪ Step 2 (Queued) |
-| **`src/components/MessagingApp.tsx`** | ~2,353 lines | `src/components/messaging/` (Sidebar, ChatFeed, MessageInput, MediaViewer, etc.) | ⚪ Step 3 (Queued) |
+| **`src/components/CustomerInquiryPage.tsx`** | ~1,385 lines | `src/components/letterbox/` (Types, Audio, Header, Form, Pending, LiveChat) | 🟢 **Step 1 (Completed)** |
+| **`src/components/ProfileSettingsModal.tsx`** | ~1,111 lines | `src/components/profile/` (AccountTab, PrivacyTab, HubTab, EdgeTab, Header) | 🟢 **Step 2 (Completed)** |
+| **`src/components/MessagingApp.tsx`** | ~2,353 lines | `src/components/messaging/` (Sidebar, ChatFeed, MessageInput, MediaViewer, etc.) | 🟡 **Step 3 (Next Target)** |
 
 ---
 
@@ -53,15 +53,16 @@ This document outlines the systematic refactoring of monolithic UI components in
 
 ---
 
-## 📋 Step 2: `ProfileSettingsModal.tsx` (1,111 lines ➔ Modular Settings)
-
-### Modular Breakdown (`src/components/profile/`):
-- `types.ts`: Profile interfaces and categories.
-- `ProfileHeader.tsx`: Modal header with tabs navigation.
-- `AccountSettingsTab.tsx`: Profile identity, business details, FAQ bot upload & editor.
-- `PrivacySettingsTab.tsx`: Anti-spam mode, friend PIN management.
-- `HubSettingsTab.tsx`: Chatze Hub listing, registration & sync status.
-- `EdgeStorageTab.tsx`: Real-time D1 shards health, multi-database status.
+## 📋 Step 2: `ProfileSettingsModal.tsx` (1,111 lines ➔ Modular Settings) — ✅ COMPLETED
+- Reduced root `ProfileSettingsModal.tsx` from 1,111 lines to 296 lines orchestrator.
+- Modularized into `src/components/profile/`:
+  - `types.ts`: Profile interfaces, `BUSINESS_CATEGORIES`, and `faqsToEditableText` helper.
+  - `ProfileHeader.tsx`: Modal header, store/user badge, close button, and 4 tab switcher buttons.
+  - `AccountSettingsTab.tsx`: Profile identity, business categories/hours/coverage, and instant FAQ bot upload/editor.
+  - `PrivacySettingsTab.tsx`: Anti-spam mode, friend PIN management, and portfolio links.
+  - `HubSettingsTab.tsx`: Chatze Hub listing, 1-click registration/sync, embed URLs, protocol info, and hub zip download.
+  - `EdgeStorageTab.tsx`: Cloudflare Edge status, KTM PoP region, D1 shards, and Data Sovereignty metrics.
+  - `index.ts`: Clean barrel exports.
 
 ---
 

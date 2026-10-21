@@ -1,68 +1,21 @@
 import React, { useState, useEffect, useMemo } from 'react'
+import { Save, CheckCircle2, AlertCircle } from 'lucide-react'
+import { parseFaqText } from '../lib/clientFaqBot'
 import {
-  X,
-  User,
-  Store,
-  Shield,
-  KeyRound,
-  QrCode,
-  Copy,
-  Check,
-  RefreshCw,
-  Sparkles,
-  Globe,
-  Bell,
-  Lock,
-  Layers,
-  Save,
-  CheckCircle2,
-  AlertCircle,
-  ExternalLink,
-  Download,
-} from 'lucide-react'
-import { getHubStoreUrl } from '../lib/hubConfig'
-import { parseFaqText, type CustomFaq } from '../lib/clientFaqBot'
+  type ProfileData,
+  type ProfileSettingsModalProps,
+  type ProfileTab,
+  BUSINESS_CATEGORIES,
+  faqsToEditableText,
+  ProfileHeader,
+  AccountSettingsTab,
+  PrivacySettingsTab,
+  HubSettingsTab,
+  EdgeStorageTab,
+} from './profile'
 
-function faqsToEditableText(faqs: CustomFaq[]): string {
-  if (!Array.isArray(faqs) || !faqs.length) return ''
-  return faqs
-    .map((f) => {
-      const lines = [`Q: ${f.q}`, `A: ${f.a}`]
-      if (f.keywords && f.keywords.length) lines.push(`K: ${f.keywords.join(', ')}`)
-      return lines.join('\n')
-    })
-    .join('\n\n')
-}
-
-export interface ProfileData {
-  displayName: string
-  handle: string
-  accountType: 'personal' | 'business'
-  bio: string
-  businessCategory: string
-  privacyMode: 'open' | 'pin_only' | 'closed'
-  friendPin: string
-  inquiryLetterboxEnabled: boolean
-  instanceUrl: string
-}
-
-interface ProfileSettingsModalProps {
-  isOpen: boolean
-  onClose: () => void
-  currentUser: { id: string; handle: string; display_name: string; role?: string }
-  onProfileUpdated?: (updated: { displayName: string; accountType: 'personal' | 'business' }) => void
-}
-
-const BUSINESS_CATEGORIES = [
-  'General & Personal Shop',
-  'Clothing, Fashion & Apparel',
-  'Restaurant, Cafe & Bakery',
-  'Electronics, Mobiles & Tech',
-  'Grocery, Kirana & Organics',
-  'Handicrafts, Art & Culture',
-  'Services, Freelance & Agency',
-  'Hotel, Travel & Tourism',
-]
+export type { ProfileData, ProfileSettingsModalProps }
+export { BUSINESS_CATEGORIES, faqsToEditableText }
 
 export function ProfileSettingsModal({
   isOpen,
@@ -70,7 +23,7 @@ export function ProfileSettingsModal({
   currentUser,
   onProfileUpdated,
 }: ProfileSettingsModalProps) {
-  const [activeTab, setActiveTab] = useState<'account' | 'privacy' | 'hub' | 'edge'>('account')
+  const [activeTab, setActiveTab] = useState<ProfileTab>('account')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saveSuccess, setSaveSuccess] = useState(false)
@@ -285,7 +238,6 @@ export function ProfileSettingsModal({
   }
 
   const inviteLink = `${instanceUrl || window.location.origin}/?add=@${handle}&pin=${friendPin}`
-  const shopInquiryLink = `${instanceUrl || window.location.origin}/shop/@${handle}`
 
   const copyToClipboard = (text: string, type: 'link' | 'pin') => {
     navigator.clipboard.writeText(text).then(() => {
@@ -304,68 +256,13 @@ export function ProfileSettingsModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/75 backdrop-blur-sm animate-fade-in font-sans">
       <div className="w-full max-w-xl bg-[#111b21] border border-[#202c33] rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-        {/* Modal Top Header */}
-        <div className="p-4 bg-[#202c33]/60 border-b border-[#202c33] flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-[#00a884]/20 border border-[#00a884]/30 flex items-center justify-center text-[#00a884]">
-              {accountType === 'business' ? <Store className="w-5 h-5" /> : <User className="w-5 h-5" />}
-            </div>
-            <div>
-              <h2 className="text-sm font-bold text-[#e9edef] leading-tight">Profile & Account Settings</h2>
-              <p className="text-[11px] text-[#8696a0]">Customize your profile, account type & anti-spam privacy</p>
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded-lg text-[#8696a0] hover:text-[#e9edef] hover:bg-[#202c33] transition-colors"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-
-        {/* Tab Switcher */}
-        <div className="flex border-b border-[#202c33] bg-[#0b141a]/60 px-4 pt-2 gap-2 shrink-0 text-xs">
-          <button
-            onClick={() => setActiveTab('account')}
-            className={`pb-2.5 px-3 font-semibold border-b-2 transition-all flex items-center gap-1.5 ${
-              activeTab === 'account'
-                ? 'border-[#00a884] text-[#00a884]'
-                : 'border-transparent text-[#8696a0] hover:text-[#e9edef]'
-            }`}
-          >
-            <User className="w-3.5 h-3.5" /> Identity & Profile
-          </button>
-          <button
-            onClick={() => setActiveTab('privacy')}
-            className={`pb-2.5 px-3 font-semibold border-b-2 transition-all flex items-center gap-1.5 ${
-              activeTab === 'privacy'
-                ? 'border-[#00a884] text-[#00a884]'
-                : 'border-transparent text-[#8696a0] hover:text-[#e9edef]'
-            }`}
-          >
-            <Shield className="w-3.5 h-3.5" /> Privacy & Anti-Spam
-          </button>
-          <button
-            onClick={() => setActiveTab('hub')}
-            className={`pb-2.5 px-3 font-semibold border-b-2 transition-all flex items-center gap-1.5 ${
-              activeTab === 'hub'
-                ? 'border-[#00a884] text-[#00a884]'
-                : 'border-transparent text-[#8696a0] hover:text-[#e9edef]'
-            }`}
-          >
-            <Store className="w-3.5 h-3.5 text-amber-400" /> Chatze Hub
-          </button>
-          <button
-            onClick={() => setActiveTab('edge')}
-            className={`pb-2.5 px-3 font-semibold border-b-2 transition-all flex items-center gap-1.5 ${
-              activeTab === 'edge'
-                ? 'border-[#00a884] text-[#00a884]'
-                : 'border-transparent text-[#8696a0] hover:text-[#e9edef]'
-            }`}
-          >
-            <Globe className="w-3.5 h-3.5" /> Edge & Node Info
-          </button>
-        </div>
+        {/* Modal Top Header & Navigation */}
+        <ProfileHeader
+          accountType={accountType}
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          onClose={onClose}
+        />
 
         {/* Tab Body */}
         <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
@@ -378,681 +275,71 @@ export function ProfileSettingsModal({
             <form id="profile-form" onSubmit={handleSave} className="space-y-4">
               {/* TAB 1: IDENTITY & PROFILE */}
               {activeTab === 'account' && (
-                <div className="space-y-4 text-xs">
-                  {/* Account Type Selector Card */}
-                  <div className="p-3.5 bg-[#0b141a] border border-[#202c33] rounded-xl space-y-3">
-                    <label className="font-bold text-[#e9edef] block text-[11px] uppercase tracking-wider text-[#8696a0]">
-                      Account Type (Nepal First Mode)
-                    </label>
-                    <div className="grid grid-cols-2 gap-2.5">
-                      <button
-                        type="button"
-                        onClick={() => setAccountType('personal')}
-                        className={`p-3 rounded-xl border text-left transition-all flex flex-col gap-1.5 ${
-                          accountType === 'personal'
-                            ? 'bg-[#00a884]/15 border-[#00a884] text-[#e9edef]'
-                            : 'bg-[#111b21] border-[#202c33] text-[#8696a0] hover:border-[#8696a0]/50'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className="font-bold text-xs flex items-center gap-1.5 text-[#e9edef]">
-                            <User className="w-3.5 h-3.5 text-[#00a884]" /> Personal Account
-                          </span>
-                          {accountType === 'personal' && <Check className="w-3.5 h-3.5 text-[#00a884]" />}
-                        </div>
-                        <p className="text-[10px] text-[#8696a0] leading-snug">
-                          For individual chatting, friends & family. Protected with private Friend PIN.
-                        </p>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => setAccountType('business')}
-                        className={`p-3 rounded-xl border text-left transition-all flex flex-col gap-1.5 ${
-                          accountType === 'business'
-                            ? 'bg-amber-500/15 border-amber-500 text-[#e9edef]'
-                            : 'bg-[#111b21] border-[#202c33] text-[#8696a0] hover:border-[#8696a0]/50'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className="font-bold text-xs flex items-center gap-1.5 text-[#e9edef]">
-                            <Store className="w-3.5 h-3.5 text-amber-400" /> Business / Shop
-                          </span>
-                          {accountType === 'business' && <Check className="w-3.5 h-3.5 text-amber-400" />}
-                        </div>
-                        <p className="text-[10px] text-[#8696a0] leading-snug">
-                          For pasals, brands & freelancers. Activates customer inquiry letterbox.
-                        </p>
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Display Name */}
-                  <div className="space-y-1.5">
-                    <label className="font-semibold text-[#8696a0]">
-                      {accountType === 'business' ? 'Shop / Brand Name' : 'Your Display Name'}
-                    </label>
-                    <input
-                      type="text"
-                      value={displayName}
-                      onChange={(e) => setDisplayName(e.target.value)}
-                      placeholder={accountType === 'business' ? 'e.g. Kathmandu Threads' : 'e.g. Aarav Sharma'}
-                      required
-                      className="w-full px-3 py-2 bg-[#0b141a] border border-[#202c33] rounded-xl text-xs text-[#e9edef] placeholder-[#8696a0]/60 focus:outline-none focus:border-[#00a884]"
-                    />
-                  </div>
-
-                  {/* Handle (Read-only instance handle) */}
-                  <div className="space-y-1.5">
-                    <label className="font-semibold text-[#8696a0]">Handle (@Username)</label>
-                    <div className="flex items-center px-3 py-2 bg-[#0b141a]/60 border border-[#202c33] rounded-xl text-xs text-[#8696a0]">
-                      <span className="text-[#00a884] font-bold mr-1">@</span>
-                      <span>{handle}</span>
-                      <span className="ml-auto text-[10px] bg-[#202c33] px-2 py-0.5 rounded text-[#8696a0]">
-                        Primary Admin
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Business Details (Only when business) */}
-                  {accountType === 'business' && (
-                    <>
-                      <div className="space-y-1.5">
-                        <label className="font-semibold text-amber-400">Business Category</label>
-                        <select
-                          value={businessCategory}
-                          onChange={(e) => setBusinessCategory(e.target.value)}
-                          className="w-full px-3 py-2 bg-[#0b141a] border border-[#202c33] rounded-xl text-xs text-[#e9edef] focus:outline-none focus:border-amber-400"
-                        >
-                          {BUSINESS_CATEGORIES.map((cat) => (
-                            <option key={cat} value={cat} className="bg-[#111b21] text-[#e9edef]">
-                              {cat}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-2.5">
-                        <div className="space-y-1.5">
-                          <label className="font-semibold text-[#8696a0]">City / Location</label>
-                          <input
-                            type="text"
-                            value={businessLocation}
-                            onChange={(e) => setBusinessLocation(e.target.value)}
-                            placeholder="e.g. Thamel, Kathmandu"
-                            className="w-full px-3 py-2 bg-[#0b141a] border border-[#202c33] rounded-xl text-xs text-[#e9edef] placeholder-[#8696a0]/60 focus:outline-none focus:border-[#00a884]"
-                          />
-                        </div>
-
-                        <div className="space-y-1.5">
-                          <label className="font-semibold text-[#8696a0]">Contact Phone / WhatsApp</label>
-                          <input
-                            type="text"
-                            value={businessPhone}
-                            onChange={(e) => setBusinessPhone(e.target.value)}
-                            placeholder="e.g. 9841XXXXXX"
-                            className="w-full px-3 py-2 bg-[#0b141a] border border-[#202c33] rounded-xl text-xs text-[#e9edef] placeholder-[#8696a0]/60 focus:outline-none focus:border-[#00a884]"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-2.5">
-                        <div className="space-y-1.5">
-                          <label className="font-semibold text-[#8696a0]">Working Hours</label>
-                          <input
-                            type="text"
-                            value={businessHours}
-                            onChange={(e) => setBusinessHours(e.target.value)}
-                            placeholder="e.g. Sun - Fri: 10 AM - 7 PM"
-                            className="w-full px-3 py-2 bg-[#0b141a] border border-[#202c33] rounded-xl text-xs text-[#e9edef] placeholder-[#8696a0]/60 focus:outline-none focus:border-[#00a884]"
-                          />
-                        </div>
-
-                        <div className="space-y-1.5">
-                          <label className="font-semibold text-[#8696a0]">Delivery Coverage</label>
-                          <input
-                            type="text"
-                            value={deliveryInfo}
-                            onChange={(e) => setDeliveryInfo(e.target.value)}
-                            placeholder="e.g. All Nepal Courier & Valley"
-                            className="w-full px-3 py-2 bg-[#0b141a] border border-[#202c33] rounded-xl text-xs text-[#e9edef] placeholder-[#8696a0]/60 focus:outline-none focus:border-[#00a884]"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="space-y-1.5">
-                        <label className="font-semibold text-[#8696a0]">Specialties & Tags (Comma Separated)</label>
-                        <input
-                          type="text"
-                          value={catalogTags}
-                          onChange={(e) => setCatalogTags(e.target.value)}
-                          placeholder="e.g. Jackets, Hoodies, Wholesale, Cash on Delivery"
-                          className="w-full px-3 py-2 bg-[#0b141a] border border-[#202c33] rounded-xl text-xs text-[#e9edef] placeholder-[#8696a0]/60 focus:outline-none focus:border-[#00a884]"
-                        />
-                      </div>
-
-                      {/* Custom FAQ Bot (Zero-Invocation, runs in customer's browser) */}
-                      <div className="space-y-2 p-3 bg-[#0b141a]/60 border border-[#00a884]/30 rounded-xl">
-                        <div className="flex items-center justify-between gap-2 flex-wrap">
-                          <label className="font-semibold text-[#00a884]">
-                            Letterbox FAQ Bot (Instant Answers)
-                          </label>
-                          <div className="flex items-center gap-1.5">
-                            <a
-                              href="/samples/sample-faqs.txt"
-                              download
-                              className="px-2 py-1 bg-[#202c33] hover:bg-[#2a3942] rounded-lg text-[10px] text-[#8696a0] hover:text-white"
-                            >
-                              Sample .txt
-                            </a>
-                            <a
-                              href="/samples/sample-faqs.json"
-                              download
-                              className="px-2 py-1 bg-[#202c33] hover:bg-[#2a3942] rounded-lg text-[10px] text-[#8696a0] hover:text-white"
-                            >
-                              Sample .json
-                            </a>
-                            <label
-                              htmlFor="faq-file-upload"
-                              className="px-2 py-1 bg-[#00a884] hover:bg-[#02906f] rounded-lg text-[10px] font-bold text-[#111b21] cursor-pointer"
-                            >
-                              Upload File
-                            </label>
-                            <input
-                              id="faq-file-upload"
-                              type="file"
-                              accept=".json,.md,.markdown,.txt,application/json,text/plain,text/markdown"
-                              onChange={handleFaqFileUpload}
-                              className="hidden"
-                            />
-                          </div>
-                        </div>
-                        <p className="text-[10px] text-[#8696a0] leading-relaxed">
-                          Paste or upload <strong>.json</strong>, <strong>.md</strong> or <strong>.txt</strong>. Use
-                          <code className="mx-1 text-[#00a884]">Q:</code> /
-                          <code className="mx-1 text-[#00a884]">A:</code> /
-                          <code className="mx-1 text-[#00a884]">K:</code>(keywords, optional). Customers get the answer instantly with zero server calls. Max 50 FAQs.
-                        </p>
-                        <textarea
-                          rows={7}
-                          value={faqText}
-                          onChange={(e) => setFaqText(e.target.value)}
-                          placeholder={'Q: Do you accept eSewa?\nA: Yes! eSewa, Khalti, Fonepay and Cash on Delivery.\nK: esewa, khalti, payment, qr\n\nQ: Return policy?\nA: Exchange within 7 days with bill.'}
-                          className="w-full px-3 py-2 bg-[#0b141a] border border-[#202c33] rounded-xl text-[11px] font-mono text-[#e9edef] placeholder-[#8696a0]/50 focus:outline-none focus:border-[#00a884] resize-y"
-                        />
-                        <div className="flex items-center justify-between text-[10px]">
-                          <span className={parsedFaqs.length ? 'text-[#00a884]' : 'text-[#8696a0]'}>
-                            {parsedFaqs.length
-                              ? `✓ ${parsedFaqs.length} FAQ${parsedFaqs.length > 1 ? 's' : ''} detected — click Save to publish`
-                              : faqText.trim()
-                              ? '⚠ No valid Q/A pairs detected yet'
-                              : 'No custom FAQs (built-in answers from your profile are used)'}
-                          </span>
-                          {faqText && (
-                            <button
-                              type="button"
-                              onClick={() => setFaqText('')}
-                              className="text-red-400 hover:underline cursor-pointer"
-                            >
-                              Clear
-                            </button>
-                          )}
-                        </div>
-                        {faqUploadError && <p className="text-[10px] text-red-400">{faqUploadError}</p>}
-                      </div>
-                    </>
-                  )}
-
-                  {/* Bio / Tagline */}
-                  <div className="space-y-1.5">
-                    <label className="font-semibold text-[#8696a0]">
-                      {accountType === 'business' ? 'Shop Description / Customer Note' : 'Bio / Status'}
-                    </label>
-                    <textarea
-                      rows={2}
-                      value={bio}
-                      onChange={(e) => setBio(e.target.value)}
-                      placeholder={
-                        accountType === 'business'
-                          ? 'e.g. Premium streetwear and handicrafts. Delivery all across Nepal (eSewa / COD).'
-                          : 'e.g. Available for coffee in Thamel. Ping me anytime.'
-                      }
-                      className="w-full px-3 py-2 bg-[#0b141a] border border-[#202c33] rounded-xl text-xs text-[#e9edef] placeholder-[#8696a0]/60 focus:outline-none focus:border-[#00a884] resize-none"
-                    />
-                  </div>
-                </div>
+                <AccountSettingsTab
+                  accountType={accountType}
+                  setAccountType={setAccountType}
+                  displayName={displayName}
+                  setDisplayName={setDisplayName}
+                  handle={handle}
+                  businessCategory={businessCategory}
+                  setBusinessCategory={setBusinessCategory}
+                  businessLocation={businessLocation}
+                  setBusinessLocation={setBusinessLocation}
+                  businessPhone={businessPhone}
+                  setBusinessPhone={setBusinessPhone}
+                  businessHours={businessHours}
+                  setBusinessHours={setBusinessHours}
+                  deliveryInfo={deliveryInfo}
+                  setDeliveryInfo={setDeliveryInfo}
+                  catalogTags={catalogTags}
+                  setCatalogTags={setCatalogTags}
+                  faqText={faqText}
+                  setFaqText={setFaqText}
+                  parsedFaqsLength={parsedFaqs.length}
+                  faqUploadError={faqUploadError}
+                  handleFaqFileUpload={handleFaqFileUpload}
+                  bio={bio}
+                  setBio={setBio}
+                />
               )}
 
               {/* TAB 2: PRIVACY & ANTI-SPAM */}
               {activeTab === 'privacy' && (
-                <div className="space-y-4 text-xs">
-                  {/* Business Notice if in Business mode */}
-                  {accountType === 'business' ? (
-                    <div className="p-3.5 bg-amber-500/10 border border-amber-500/30 rounded-xl space-y-2">
-                      <div className="flex items-center gap-2 text-amber-400 font-bold">
-                        <Shield className="w-4 h-4" />
-                        <span>Business Privacy Protection Active</span>
-                      </div>
-                      <p className="text-[11px] text-[#e9edef]/90 leading-relaxed">
-                        To protect your Cloudflare Worker quota from bot attacks and unwanted spam,
-                        incoming stranger friend requests are <strong>Private Only (PIN-Protected)</strong>.
-                      </p>
-                      <ul className="text-[11px] text-[#8696a0] list-disc list-inside space-y-0.5">
-                        <li>Customers connect with you via your public <strong>Letterbox Portfolio</strong> without friend requests.</li>
-                        <li>You can still manually add any friend as private directly from your dashboard.</li>
-                        <li>Trusted business partners can connect if you give them your Private Friend PIN.</li>
-                      </ul>
-                    </div>
-                  ) : null}
-
-                  {/* Personal Friend PIN Card */}
-                  <div className="p-4 bg-[#0b141a] border border-[#202c33] rounded-xl space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <KeyRound className="w-4 h-4 text-[#00a884]" />
-                        <span className="font-bold text-[#e9edef]">
-                          {accountType === 'business' ? 'Private Business Friend PIN' : 'Personal Friend PIN'}
-                        </span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={handleRegeneratePin}
-                        disabled={regeneratingPin}
-                        className="flex items-center gap-1 text-[11px] text-[#8696a0] hover:text-[#00a884] transition-colors"
-                      >
-                        <RefreshCw className={`w-3 h-3 ${regeneratingPin ? 'animate-spin' : ''}`} />
-                        <span>Change PIN</span>
-                      </button>
-                    </div>
-
-                    <p className="text-[11px] text-[#8696a0]">
-                      {accountType === 'business'
-                        ? 'Share this PIN only with trusted close partners or suppliers who need a direct 1-on-1 friend channel.'
-                        : 'Give this PIN to friends you trust. When Privacy Mode is set to PIN Only, strangers and bots cannot add you without it.'}
-                    </p>
-
-                    <div className="flex items-center gap-2 p-2.5 bg-[#111b21] border border-[#202c33] rounded-xl">
-                      <span className="font-mono text-base font-extrabold tracking-widest text-[#00a884] pl-2">
-                        {friendPin || 'NP-7429'}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => copyToClipboard(friendPin, 'pin')}
-                        className="ml-auto px-3 py-1 bg-[#202c33] hover:bg-[#2a3942] text-xs font-semibold rounded-lg text-[#e9edef] flex items-center gap-1.5 transition-all"
-                      >
-                        {copiedPin ? <Check className="w-3.5 h-3.5 text-[#00a884]" /> : <Copy className="w-3.5 h-3.5" />}
-                        <span>{copiedPin ? 'Copied' : 'Copy PIN'}</span>
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Privacy Mode Selector (Only configurable if personal) */}
-                  {accountType === 'personal' && (
-                    <div className="space-y-2">
-                      <label className="font-bold text-[#8696a0] block text-[11px] uppercase tracking-wider">
-                        Who Can Send You Friend Requests?
-                      </label>
-                      <div className="space-y-2">
-                        <label
-                          className={`p-3 rounded-xl border flex items-start gap-3 cursor-pointer transition-all ${
-                            privacyMode === 'pin_only'
-                              ? 'bg-[#00a884]/10 border-[#00a884]'
-                              : 'bg-[#0b141a] border-[#202c33] hover:border-[#8696a0]/40'
-                          }`}
-                        >
-                          <input
-                            type="radio"
-                            name="privacyMode"
-                            value="pin_only"
-                            checked={privacyMode === 'pin_only'}
-                            onChange={() => setPrivacyMode('pin_only')}
-                            className="mt-0.5 accent-[#00a884]"
-                          />
-                          <div className="space-y-0.5">
-                            <span className="font-bold text-[#e9edef] block">
-                              🔒 PIN Protected (Recommended for Nepal)
-                            </span>
-                            <span className="text-[11px] text-[#8696a0] block">
-                              Only people who have your PIN or scan your QR code can add you. Blocks 100% of blind bots.
-                            </span>
-                          </div>
-                        </label>
-
-                        <label
-                          className={`p-3 rounded-xl border flex items-start gap-3 cursor-pointer transition-all ${
-                            privacyMode === 'open'
-                              ? 'bg-[#00a884]/10 border-[#00a884]'
-                              : 'bg-[#0b141a] border-[#202c33] hover:border-[#8696a0]/40'
-                          }`}
-                        >
-                          <input
-                            type="radio"
-                            name="privacyMode"
-                            value="open"
-                            checked={privacyMode === 'open'}
-                            onChange={() => setPrivacyMode('open')}
-                            className="mt-0.5 accent-[#00a884]"
-                          />
-                          <div className="space-y-0.5">
-                            <span className="font-bold text-[#e9edef] block">
-                              🌐 Open Federation (Public Search)
-                            </span>
-                            <span className="text-[11px] text-[#8696a0] block">
-                              Anyone who knows your @handle can send a friend request. (Subject to max 5 pending queue cap).
-                            </span>
-                          </div>
-                        </label>
-
-                        <label
-                          className={`p-3 rounded-xl border flex items-start gap-3 cursor-pointer transition-all ${
-                            privacyMode === 'closed'
-                              ? 'bg-[#00a884]/10 border-[#00a884]'
-                              : 'bg-[#0b141a] border-[#202c33] hover:border-[#8696a0]/40'
-                          }`}
-                        >
-                          <input
-                            type="radio"
-                            name="privacyMode"
-                            value="closed"
-                            checked={privacyMode === 'closed'}
-                            onChange={() => setPrivacyMode('closed')}
-                            className="mt-0.5 accent-[#00a884]"
-                          />
-                          <div className="space-y-0.5">
-                            <span className="font-bold text-[#e9edef] block">
-                              🚫 Closed / Incognito
-                            </span>
-                            <span className="text-[11px] text-[#8696a0] block">
-                              Reject all incoming friend requests automatically. You can still send outbound requests.
-                            </span>
-                          </div>
-                        </label>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Business Letterbox Toggle (For business accounts) */}
-                  {accountType === 'business' && (
-                    <div className="p-3.5 bg-amber-500/10 border border-amber-500/20 rounded-xl space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="font-bold text-amber-400">Customer Inquiries Letterbox</span>
-                        <input
-                          type="checkbox"
-                          checked={inquiryLetterboxEnabled}
-                          onChange={(e) => setInquiryLetterboxEnabled(e.target.checked)}
-                          className="w-4 h-4 accent-[#00a884] cursor-pointer"
-                        />
-                      </div>
-                      <p className="text-[11px] text-[#8696a0]">
-                        Allows customers on the internet to drop 1 inquiry note (e.g. asking product prices) into your
-                        queue without ringing your server or sending spam floods.
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Copy Invite / Shop Portfolio Link */}
-                  <div className="p-3 bg-[#0b141a] border border-[#202c33] rounded-xl space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-[#e9edef] block">
-                        {accountType === 'business' ? 'Public Business Portfolio & Letterbox Link' : 'Your Personal Add-Me Link'}
-                      </span>
-                      {accountType === 'business' && (
-                        <a
-                          href="/shop"
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-[11px] text-[#00a884] hover:underline flex items-center gap-1 font-semibold"
-                        >
-                          <span>Preview Landing Page</span>
-                          <ExternalLink className="w-3 h-3" />
-                        </a>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="text"
-                        readOnly
-                        value={accountType === 'business' ? `${instanceUrl || window.location.origin}/shop` : inviteLink}
-                        className="flex-1 px-2.5 py-1.5 bg-[#111b21] border border-[#202c33] rounded-lg text-[11px] text-[#8696a0] font-mono select-all"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => copyToClipboard(accountType === 'business' ? `${instanceUrl || window.location.origin}/shop` : inviteLink, 'link')}
-                        className="px-3 py-1.5 bg-[#00a884] hover:bg-[#02906f] text-[#111b21] font-bold rounded-lg text-xs flex items-center gap-1 shrink-0"
-                      >
-                        {copiedLink ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                        <span>{copiedLink ? 'Copied' : 'Copy'}</span>
-                      </button>
-                    </div>
-                  </div>
-                </div>
+                <PrivacySettingsTab
+                  accountType={accountType}
+                  friendPin={friendPin}
+                  regeneratingPin={regeneratingPin}
+                  handleRegeneratePin={handleRegeneratePin}
+                  copiedPin={copiedPin}
+                  copyToClipboard={copyToClipboard}
+                  privacyMode={privacyMode}
+                  setPrivacyMode={setPrivacyMode}
+                  inquiryLetterboxEnabled={inquiryLetterboxEnabled}
+                  setInquiryLetterboxEnabled={setInquiryLetterboxEnabled}
+                  inviteLink={inviteLink}
+                  instanceUrl={instanceUrl}
+                  copiedLink={copiedLink}
+                />
               )}
 
               {/* TAB 3: CHATZE HUB DIRECTORY INTEGRATION */}
               {activeTab === 'hub' && (
-                <div className="space-y-4 text-xs">
-                  {/* Status Banner */}
-                  <div className={`p-3.5 rounded-xl border space-y-2 ${
-                    hubListed
-                      ? 'bg-[#00a884]/10 border-[#00a884]/30 text-[#e9edef]'
-                      : 'bg-amber-500/10 border-amber-500/30 text-amber-200'
-                  }`}>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Store className={`w-4 h-4 ${hubListed ? 'text-[#00a884]' : 'text-amber-400'}`} />
-                        <span className="font-bold">
-                          Chatze Hub Status: {hubListed ? 'Active & Listed' : 'Unlisted (404 for Visitors)'}
-                        </span>
-                      </div>
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold ${
-                        hubListed ? 'bg-[#00a884]/20 text-[#00a884]' : 'bg-amber-500/20 text-amber-400'
-                      }`}>
-                        {hubListed ? '🟢 DIRECTORY ACTIVE' : '⚪ UNLISTED'}
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-[#8696a0] leading-relaxed">
-                      {hubListed
-                        ? 'Your Letterbox is active in the Nepal Discovery Directory. Consumers can discover your store and send spam-protected inquiries via Google Sign-In.'
-                        : 'Your Letterbox is unlisted. Visitors attempting to open or embed your Letterbox will receive a 404 Access Restricted notice.'}
-                    </p>
-                  </div>
-
-                  {/* Hub Listing Toggle */}
-                  <div className="p-3.5 bg-[#0b141a] border border-[#202c33] rounded-xl space-y-2.5">
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-[#e9edef]">Enable Listing on Chatze Hub</span>
-                      <input
-                        type="checkbox"
-                        checked={hubListed}
-                        onChange={(e) => setHubListed(e.target.checked)}
-                        className="w-4 h-4 accent-[#00a884] cursor-pointer"
-                      />
-                    </div>
-                    <p className="text-[11px] text-[#8696a0]">
-                      If disabled, all inbound customer inquiries to this node are restricted and return 404.
-                    </p>
-                  </div>
-
-                  {/* 1-Click Sync to Hub Button */}
-                  <div className="p-3.5 bg-[#182229] border border-[#202c33] rounded-xl space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <span className="font-bold text-[#e9edef] block">1-Click Publish to Hub</span>
-                        <span className="text-[11px] text-[#8696a0]">
-                          Publish or update your store name, tags, and embed link in the Hub directory
-                        </span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={handleSyncToHub}
-                        disabled={syncingHub}
-                        className="px-3.5 py-2 bg-[#00a884] hover:bg-[#02906f] text-[#111b21] font-bold rounded-xl text-xs flex items-center gap-1.5 transition-all shadow-md cursor-pointer disabled:opacity-50 shrink-0"
-                      >
-                        {syncingHub ? (
-                          <>
-                            <div className="w-3.5 h-3.5 border-2 border-[#111b21] border-t-transparent rounded-full animate-spin" />
-                            <span>Syncing...</span>
-                          </>
-                        ) : (
-                          <>
-                            <Sparkles className="w-3.5 h-3.5" />
-                            <span>Publish to Hub</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
-
-                    {hubSyncSuccess && (
-                      <div className="p-2.5 bg-emerald-950/40 border border-emerald-800/50 rounded-xl text-emerald-300 text-xs flex items-center gap-2">
-                        <CheckCircle2 className="w-4 h-4 shrink-0" />
-                        <span>{hubSyncSuccess}</span>
-                      </div>
-                    )}
-
-                    {hubSyncError && (
-                      <div className="p-2.5 bg-red-950/40 border border-red-800/50 rounded-xl text-red-300 text-xs flex items-center gap-2">
-                        <AlertCircle className="w-4 h-4 shrink-0" />
-                        <span>{hubSyncError}</span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Protected Embed Link */}
-                  <div className="p-3.5 bg-[#0b141a] border border-[#202c33] rounded-xl space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-[#e9edef] flex items-center gap-1.5">
-                        <Lock className="w-3.5 h-3.5 text-[#00a884]" />
-                        <span>Sovereign Letterbox Embed URL</span>
-                      </span>
-                      <a
-                        href={getHubStoreUrl(handle)}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-[11px] text-[#00a884] hover:underline flex items-center gap-1 font-semibold"
-                      >
-                        <span>Preview in Hub</span>
-                        <ExternalLink className="w-3 h-3" />
-                      </a>
-                    </div>
-                    <p className="text-[10px] text-[#8696a0]">
-                      This URL is protected: it cannot be opened in naked browser tabs (automatically redirects to Hub). It only renders when embedded inside Chatze Hub.
-                    </p>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="text"
-                        readOnly
-                        value={`${instanceUrl || window.location.origin}/letterbox?shop=${handle}`}
-                        className="flex-1 px-2.5 py-1.5 bg-[#111b21] border border-[#202c33] rounded-lg text-[11px] text-[#8696a0] font-mono select-all"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const url = `${instanceUrl || window.location.origin}/letterbox?shop=${handle}`
-                          navigator.clipboard.writeText(url)
-                          setCopiedEmbedUrl(true)
-                          setTimeout(() => setCopiedEmbedUrl(false), 2000)
-                        }}
-                        className="px-3 py-1.5 bg-[#202c33] hover:bg-[#2a3942] text-[#e9edef] font-semibold rounded-lg text-xs flex items-center gap-1 shrink-0 cursor-pointer"
-                      >
-                        {copiedEmbedUrl ? <Check className="w-3.5 h-3.5 text-[#00a884]" /> : <Copy className="w-3.5 h-3.5" />}
-                        <span>{copiedEmbedUrl ? 'Copied' : 'Copy'}</span>
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Tier 2 Cryptographic Protocol Handshake Info */}
-                  <div className="p-3 bg-[#111b21] border border-[#202c33] rounded-xl space-y-2 text-[11px]">
-                    <div className="flex items-center justify-between text-[#8696a0]">
-                      <span className="font-semibold text-white">Tier 2 Protocol Discovery:</span>
-                      <span className="text-[#00a884] font-mono font-bold">chatze-letterbox-v1</span>
-                    </div>
-                    <div className="flex items-center justify-between text-[#8696a0]">
-                      <span>Well-Known Endpoint:</span>
-                      <a
-                        href="/.well-known/chatze-node.json"
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-[#00a884] font-mono hover:underline flex items-center gap-1"
-                      >
-                        <span>/.well-known/chatze-node.json</span>
-                        <ExternalLink className="w-2.5 h-2.5" />
-                      </a>
-                    </div>
-                    <div className="flex items-center justify-between text-[#8696a0]">
-                      <span>Cryptographic Key:</span>
-                      <span className="font-mono text-[#8696a0]">ECDSA P-256 (Ed25519 compatible)</span>
-                    </div>
-                  </div>
-
-                  {/* Standalone Chatze Hub Codebase Download */}
-                  <div className="p-3 bg-gradient-to-r from-[#182229] to-[#111b21] border border-[#2a3942] rounded-xl flex items-center justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="text-white font-semibold text-xs flex items-center gap-1.5">
-                        <Store className="w-3.5 h-3.5 text-[#00a884]" />
-                        <span>Chatze Hub Project Codebase</span>
-                      </p>
-                      <p className="text-[#8696a0] text-[10px] mt-0.5 truncate">
-                        Self-contained Cloudflare D1 + Hono + Vite gateway ready for deployment
-                      </p>
-                    </div>
-                    <a
-                      href="/chatze-hub.zip"
-                      download="chatze-hub.zip"
-                      className="px-3 py-1.5 bg-[#00a884] hover:bg-[#02906f] text-[#111b21] font-bold text-xs rounded-lg flex items-center gap-1.5 shrink-0 transition-colors shadow-sm"
-                      title="Download chatze-hub.zip"
-                    >
-                      <Download className="w-3.5 h-3.5" />
-                      <span>Download .zip</span>
-                    </a>
-                  </div>
-                </div>
+                <HubSettingsTab
+                  hubListed={hubListed}
+                  setHubListed={setHubListed}
+                  syncingHub={syncingHub}
+                  handleSyncToHub={handleSyncToHub}
+                  hubSyncSuccess={hubSyncSuccess}
+                  hubSyncError={hubSyncError}
+                  handle={handle}
+                  instanceUrl={instanceUrl}
+                  copiedEmbedUrl={copiedEmbedUrl}
+                  setCopiedEmbedUrl={setCopiedEmbedUrl}
+                />
               )}
 
               {/* TAB 4: EDGE CLOUD & NODE INFO */}
-              {activeTab === 'edge' && (
-                <div className="space-y-3 text-xs">
-                  <div className="p-3.5 bg-[#0b141a] border border-[#202c33] rounded-xl space-y-2.5">
-                    <span className="font-bold text-[#e9edef] block text-[11px] uppercase tracking-wider text-[#8696a0]">
-                      Cloudflare Edge Status
-                    </span>
-                    <div className="space-y-2 text-[11px]">
-                      <div className="flex items-center justify-between py-1 border-b border-[#202c33]/40">
-                        <span className="text-[#8696a0]">Edge PoP Region:</span>
-                        <span className="font-semibold text-[#00a884] flex items-center gap-1.5">
-                          <span className="w-2 h-2 rounded-full bg-[#00a884] animate-pulse"></span>
-                          Kathmandu (KTM) / Edge Network
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between py-1 border-b border-[#202c33]/40">
-                        <span className="text-[#8696a0]">D1 SQLite Database:</span>
-                        <span className="font-semibold text-[#e9edef]">Active (5 GB Edge Native)</span>
-                      </div>
-                      <div className="flex items-center justify-between py-1 border-b border-[#202c33]/40">
-                        <span className="text-[#8696a0]">WebPush VAPID Keypair:</span>
-                        <span className="font-semibold text-[#00a884]">P-256 Verified in .env</span>
-                      </div>
-                      <div className="flex items-center justify-between py-1 border-b border-[#202c33]/40">
-                        <span className="text-[#8696a0]">Daily Worker Quota:</span>
-                        <span className="font-semibold text-[#e9edef]">100,000 Free Invocations/Day</span>
-                      </div>
-                      <div className="flex items-center justify-between py-1">
-                        <span className="text-[#8696a0]">Anti-Spam Security Shield:</span>
-                        <span className="font-semibold text-[#00a884]">Active (eTLD+1 Root Protection)</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="p-3 bg-[#00a884]/10 border border-[#00a884]/20 rounded-xl space-y-1 text-[11px] text-[#e9edef]">
-                    <span className="font-bold flex items-center gap-1 text-[#00a884]">
-                      <CheckCircle2 className="w-3.5 h-3.5" /> 100% Data Sovereignty
-                    </span>
-                    <p className="text-[#8696a0] leading-relaxed">
-                      Your messages, contacts, and images stay completely inside your private Cloudflare D1 database.
-                      No central company can read or sell your chat history.
-                    </p>
-                  </div>
-                </div>
-              )}
+              {activeTab === 'edge' && <EdgeStorageTab />}
 
               {/* Status Message */}
               {errorMsg && (

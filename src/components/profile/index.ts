@@ -1,0 +1,6 @@
+export * from './types'
+export { ProfileHeader } from './ProfileHeader'
+export { AccountSettingsTab } from './AccountSettingsTab'
+export { PrivacySettingsTab } from './PrivacySettingsTab'
+export { HubSettingsTab } from './HubSettingsTab'
+export { EdgeStorageTab } from './EdgeStorageTab'
