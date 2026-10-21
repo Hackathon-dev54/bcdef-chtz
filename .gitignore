@@ -13,6 +13,7 @@ features-toadd/
 # System Design & Documentation Markdown Files
 *.md
 !README.md
+!factorizefile.md
 !public/samples/*.md
 
 # OS & Editor Files

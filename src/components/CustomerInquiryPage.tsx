@@ -1,107 +1,24 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react'
 import {
-  Store,
-  ShieldCheck,
-  Send,
-  CheckCircle2,
-  AlertCircle,
-  Clock,
-  Sparkles,
   Lock,
+  ShieldCheck,
   ArrowRight,
-  MapPin,
-  MessageSquare,
-  Phone,
-  Truck,
-  Copy,
-  Check,
-  BadgeCheck,
-  ExternalLink,
-  LogIn,
-  ShieldAlert,
-  CheckCheck,
-  Image as ImageIcon,
-  ChevronDown,
-  ChevronUp,
-  Volume2,
-  VolumeX,
-  X,
-  RefreshCw,
+  AlertCircle,
   Compass,
+  X,
 } from 'lucide-react'
 import { CHATZE_HUB_URL } from '../lib/hubConfig'
-import { evaluateClientFaq, type CustomFaq } from '../lib/clientFaqBot'
+import { evaluateClientFaq } from '../lib/clientFaqBot'
 import { compressImageToWebP } from './MessagingApp'
 
-interface ShopProfile {
-  displayName: string
-  handle: string
-  accountType: string
-  bio: string
-  businessCategory: string
-  businessPhone?: string
-  businessLocation?: string
-  businessHours?: string
-  deliveryInfo?: string
-  catalogTags?: string
-  inquiryLetterboxEnabled: boolean
-  hubListed?: boolean
-  hubNodeId?: string
-  customFaqs?: CustomFaq[]
-}
-
-interface CustomerInquiryPageProps {
-  shopHandle?: string
-  currentUser?: { id: string; handle: string; display_name: string; role?: string } | null
-  onSwitchToOwnerLogin: () => void
-  onGoToApp?: () => void
-}
-
-interface ChatMessage {
-  id: string
-  conversationId: string
-  senderId: string
-  senderHandle?: string
-  recipientHandle?: string
-  body: string
-  createdAt: string
-  readAt?: string | null
-  status?: 'sending' | 'sent'
-}
-
-const INQUIRY_CATEGORIES = [
-  { id: 'price_stock', label: '🏷️ Price & Stock', hint: 'Ask about sizing, color or pricing' },
-  { id: 'delivery', label: '🚚 Delivery & Location', hint: 'Delivery time to your city or valley' },
-  { id: 'wholesale', label: '📦 Wholesale / Bulk', hint: 'Special pricing for bulk orders' },
-  { id: 'general', label: '❓ General Question', hint: 'Custom inquiry or general request' },
-]
-
-const QUICK_PROMPTS = [
-  '📦 Can you confirm current stock and available colors?',
-  '🚚 What is the delivery time and cost to Kathmandu?',
-  '💳 Please share your payment QR code (eSewa / Fonepay)',
-  '📍 What is your physical store address?',
-]
-
-// Synthesize pleasant gentle notification chime via Web Audio API (Zero external assets needed)
-function playGentleChime() {
-  try {
-    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext
-    if (!AudioCtx) return
-    const ctx = new AudioCtx()
-    const osc = ctx.createOscillator()
-    const gain = ctx.createGain()
-    osc.connect(gain)
-    gain.connect(ctx.destination)
-    osc.type = 'sine'
-    osc.frequency.setValueAtTime(587.33, ctx.currentTime) // D5
-    osc.frequency.setValueAtTime(880, ctx.currentTime + 0.08) // A5
-    gain.gain.setValueAtTime(0.12, ctx.currentTime)
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.28)
-    osc.start(ctx.currentTime)
-    osc.stop(ctx.currentTime + 0.28)
-  } catch {}
-}
+// Modular subcomponents & types
+import type { ShopProfile, CustomerInquiryPageProps, ChatMessage } from './letterbox/types'
+import { playGentleChime } from './letterbox/audio'
+import { LetterboxHeader } from './letterbox/LetterboxHeader'
+import { LetterboxAuthRequired } from './letterbox/LetterboxAuthRequired'
+import { LetterboxLiveChat } from './letterbox/LetterboxLiveChat'
+import { LetterboxPendingCard } from './letterbox/LetterboxPendingCard'
+import { LetterboxCompositionForm } from './letterbox/LetterboxCompositionForm'
 
 export function CustomerInquiryPage({
   shopHandle = 'admin',
@@ -278,23 +195,20 @@ export function CustomerInquiryPage({
           hubSovereignHandle ||
           (hubUserEmail ? hubUserEmail.split('@')[0].toLowerCase().replace(/[^a-z0-9_]/g, '') : null) ||
           storedHandle ||
-          ''
+          (resolvedUser?.display_name ? resolvedUser.display_name.toLowerCase().replace(/[^a-z0-9_]/g, '') : null)
 
         const effectiveCustomerUserId = resolvedUser?.id || storedUserId || ''
 
-        // Check if this user already has an inquiry for this shop
+        // Check if there is an active inquiry for this customer
         const inqQueryParams = new URLSearchParams()
         if (effectiveCustomerHandle) inqQueryParams.set('handle', effectiveCustomerHandle)
         if (effectiveCustomerUserId) inqQueryParams.set('userId', effectiveCustomerUserId)
         if (storedInquiryId) inqQueryParams.set('inquiryId', storedInquiryId)
 
-        const authHeader: Record<string, string> = localToken ? { Authorization: `Bearer ${localToken}` } : {}
-        const inqRes = await fetch(`/api/inquiries?${inqQueryParams.toString()}`, { headers: authHeader })
-
+        const inqRes = await fetch(`/api/inquiries?${inqQueryParams.toString()}`)
         if (inqRes.ok) {
           const inqData = await inqRes.json()
           if (inqData.inquiries && inqData.inquiries.length > 0) {
-            // Find user's active inquiry
             const myNote =
               inqData.inquiries.find((i: any) => i.id === storedInquiryId) ||
               inqData.inquiries.find(
@@ -312,7 +226,6 @@ export function CustomerInquiryPage({
               const convId = myNote.conversation_id || `conv_${myNote.sender_handle}`
               loadConversationMessages(convId)
             } else if (effectiveCustomerHandle) {
-              // Also check if any existing messages are waiting for this customer
               loadConversationMessages(`conv_${effectiveCustomerHandle}`)
             }
           } else if (effectiveCustomerHandle) {
@@ -352,7 +265,6 @@ export function CustomerInquiryPage({
             status: 'accepted',
             conversation_id: convId,
           }))
-          setTimeout(() => scrollToBottom('instant'), 50)
           return data.messages
         }
       }
@@ -799,21 +711,6 @@ export function CustomerInquiryPage({
 
   const isPendingReview = (existingInquiry?.status === 'pending' || submitted) && !isChatOpen && messages.length === 0
 
-  // Helper to parse message for image markdown ![alt](url)
-  const parseMessage = (text: string) => {
-    const imgRegex = /!\[(.*?)\]\((.*?)\)/
-    const match = text.match(imgRegex)
-    if (match) {
-      return {
-        isImage: true,
-        alt: match[1],
-        url: match[2],
-        caption: text.replace(imgRegex, '').trim(),
-      }
-    }
-    return { isImage: false, text }
-  }
-
   const customerHandle =
     authedUser?.handle ||
     existingInquiry?.sender_handle ||
@@ -822,535 +719,66 @@ export function CustomerInquiryPage({
   return (
     <div className="h-screen w-full bg-[#0b141a] text-[#e9edef] flex flex-col font-sans selection:bg-[#00a884]/30 overflow-hidden">
       {/* Top Header Banner */}
-      <header className="border-b border-[#202c33] bg-[#111b21] flex-shrink-0 z-20">
-        <div className="max-w-4xl w-full mx-auto px-3 sm:px-4 py-2.5 flex items-center justify-between">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-8 h-8 rounded-xl bg-[#00a884]/20 border border-[#00a884]/40 flex items-center justify-center text-[#00a884] font-bold text-xs flex-shrink-0">
-              <Store className="w-4 h-4" />
-            </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <span className="font-bold text-xs sm:text-sm tracking-wide text-[#e9edef] truncate">
-                  {profile?.displayName || 'Chatze Sovereign Store'}
-                </span>
-                <span className="text-[10px] bg-[#00a884]/15 text-[#00a884] border border-[#00a884]/30 px-2 py-0.5 rounded-full font-bold flex items-center gap-1 flex-shrink-0">
-                  <BadgeCheck className="w-3 h-3" /> Hub Verified
-                </span>
-              </div>
-              <p className="text-[11px] text-[#8696a0] flex items-center gap-2 truncate">
-                <span>@{profile?.handle || shopHandle}</span>
-                <span>•</span>
-                <span className="text-[#00a884] font-medium flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#00a884] animate-pulse" />
-                  {isChatOpen ? 'Live Chat Unlocked' : 'Letterbox Active'}
-                </span>
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
-            {isChatOpen && (
-              <button
-                onClick={() => setSoundEnabled((prev) => !prev)}
-                title={soundEnabled ? 'Mute incoming chimes' : 'Unmute chimes'}
-                className="p-1.5 bg-[#202c33] hover:bg-[#2a3942] text-[#8696a0] hover:text-[#e9edef] text-xs rounded-lg transition-colors cursor-pointer"
-              >
-                {soundEnabled ? <Volume2 className="w-3.5 h-3.5 text-[#00a884]" /> : <VolumeX className="w-3.5 h-3.5" />}
-              </button>
-            )}
-
-            <button
-              onClick={handleCopyLink}
-              title="Share store link"
-              className="px-2.5 py-1.5 bg-[#202c33] hover:bg-[#2a3942] text-[#8696a0] hover:text-[#e9edef] text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer"
-            >
-              {copiedShare ? (
-                <>
-                  <Check className="w-3.5 h-3.5 text-[#00a884]" />
-                  <span className="text-[#00a884] text-[11px] hidden sm:inline">Copied</span>
-                </>
-              ) : (
-                <>
-                  <Copy className="w-3.5 h-3.5" />
-                  <span className="text-[11px] hidden sm:inline">Share</span>
-                </>
-              )}
-            </button>
-          </div>
-        </div>
-      </header>
+      <LetterboxHeader
+        profile={profile}
+        shopHandle={shopHandle}
+        isChatOpen={isChatOpen}
+        soundEnabled={soundEnabled}
+        copiedShare={copiedShare}
+        onToggleSound={() => setSoundEnabled((prev) => !prev)}
+        onCopyLink={handleCopyLink}
+      />
 
       {/* Main Container */}
       <main className="flex-1 flex flex-col min-h-0 max-w-4xl w-full mx-auto overflow-hidden">
-        {/* ==================================================================== */}
-        {/* 1. GOOGLE SIGN-IN REQUIREMENT CHECK */}
-        {/* ==================================================================== */}
         {!authedUser && !senderName ? (
-          <div className="p-4 sm:p-6 flex-1 flex items-center justify-center overflow-y-auto">
-            <div className="max-w-md w-full bg-[#111b21] border border-amber-500/30 rounded-3xl p-6 text-center space-y-4 shadow-xl">
-              <div className="w-14 h-14 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center mx-auto text-amber-400">
-                <Lock className="w-7 h-7" />
-              </div>
-              <div className="space-y-1.5">
-                <h2 className="text-base font-bold text-white">Google Sign-In Required on Chatze Hub</h2>
-                <p className="text-xs text-[#8696a0] leading-relaxed">
-                  To protect merchants from spam and guarantee authentic customer inquiries, notes require a verified Google identity. Sign in with Google on Chatze Hub to unlock this Letterbox.
-                </p>
-              </div>
-              <button
-                onClick={handleTriggerHubLogin}
-                className="w-full py-3 bg-[#00a884] hover:bg-[#02906f] text-[#111b21] font-bold rounded-xl text-xs transition-all shadow-md inline-flex items-center justify-center gap-2 cursor-pointer"
-              >
-                <LogIn className="w-4 h-4" />
-                <span>Sign In with Google on Chatze Hub</span>
-              </button>
-            </div>
-          </div>
+          <LetterboxAuthRequired onTriggerHubLogin={handleTriggerHubLogin} />
         ) : isChatOpen ? (
-          /* ==================================================================== */
-          /* 2. LIVE CHAT INTERFACE (WHEN INQUIRY ACCEPTED BY SELF-HOSTED CHATZE) */
-          /* ==================================================================== */
-          <div className="flex-1 flex flex-col min-h-0 bg-[#0b141a]">
-            {/* Pinned Original Inquiry Header (Collapsible) */}
-            <div className="bg-[#182229] border-b border-[#222e35] px-3 py-2 flex-shrink-0">
-              <div className="flex items-center justify-between text-xs text-[#8696a0]">
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className="w-2 h-2 rounded-full bg-[#00a884] animate-pulse flex-shrink-0" />
-                  <span className="font-semibold text-white truncate text-[11px] sm:text-xs">
-                    Inquiry Accepted: {existingInquiry?.category || 'Customer Inquiry'}
-                  </span>
-                  <span className="text-[10px] bg-[#00a884]/15 text-[#00a884] border border-[#00a884]/30 px-2 py-0.5 rounded-full font-bold hidden sm:inline">
-                    Chat Open
-                  </span>
-                </div>
-                <button
-                  onClick={() => setIsNoteExpanded((prev) => !prev)}
-                  className="flex items-center gap-1 text-[11px] text-[#00a884] hover:underline cursor-pointer flex-shrink-0 ml-2"
-                >
-                  <span>{isNoteExpanded ? 'Hide Note' : 'View Note'}</span>
-                  {isNoteExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-                </button>
-              </div>
-
-              {isNoteExpanded && (
-                <div className="mt-2 p-2.5 bg-[#111b21] rounded-xl border border-[#2a3942] text-xs text-[#e9edef] space-y-1 animate-fadeIn">
-                  <div className="flex items-center justify-between text-[10px] text-[#8696a0]">
-                    <span>From: @{customerHandle}</span>
-                    <span>{existingInquiry?.created_at ? new Date(existingInquiry.created_at).toLocaleString() : ''}</span>
-                  </div>
-                  <p className="font-sans leading-relaxed text-[11px]">
-                    "{existingInquiry?.content}"
-                  </p>
-                </div>
-              )}
-            </div>
-
-            {/* Messages Scroll Area */}
-            <div
-              ref={messagesContainerRef}
-              className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-2.5 min-h-0 bg-[#0b141a]"
-            >
-              {/* Top welcome bubble */}
-              <div className="flex justify-center my-2">
-                <div className="bg-[#182229] border border-[#222e35] text-[#8696a0] text-[10px] sm:text-[11px] px-3 py-1.5 rounded-full shadow-sm flex items-center gap-1.5">
-                  <ShieldCheck className="w-3.5 h-3.5 text-[#00a884]" />
-                  <span>Sovereign Letterbox Chat • Messages stored on merchant's Cloudflare D1</span>
-                </div>
-              </div>
-
-              {messages.length === 0 && (
-                <div className="py-8 text-center space-y-2 text-[#8696a0]">
-                  <div className="w-10 h-10 rounded-full bg-[#182229] border border-[#222e35] flex items-center justify-center mx-auto text-[#00a884]">
-                    <MessageSquare className="w-5 h-5" />
-                  </div>
-                  <p className="text-xs">Chat is live! Send a message or question below.</p>
-                </div>
-              )}
-
-              {messages.map((msg) => {
-                const cleanSender = (msg.senderHandle || msg.senderId || '').replace(/^@/, '').trim().toLowerCase()
-                const isMe =
-                  cleanSender === customerHandle.toLowerCase() ||
-                  msg.senderId === authedUser?.id ||
-                  cleanSender === 'customer' ||
-                  cleanSender === (authedUser?.handle || '').toLowerCase()
-
-                const parsed = parseMessage(msg.body)
-
-                return (
-                  <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'} animate-fadeIn`}>
-                    <div
-                      className={`max-w-[85%] sm:max-w-[75%] rounded-2xl ${
-                        parsed.isImage ? 'p-1.5' : 'px-3.5 py-2'
-                      } text-xs sm:text-sm shadow-md transition-all ${
-                        isMe
-                          ? 'bg-[#005c4b] text-[#e9edef] rounded-br-none'
-                          : 'bg-[#202c33] text-[#e9edef] rounded-bl-none border border-[#2a3942]'
-                      }`}
-                    >
-                      {/* Sender label for merchant */}
-                      {!isMe && (
-                        <div className="flex items-center gap-1 text-[10px] font-bold text-[#00a884] mb-1">
-                          <Store className="w-3 h-3" />
-                          <span>{profile?.displayName || 'Merchant'}</span>
-                        </div>
-                      )}
-
-                      {/* Image Message Rendering */}
-                      {parsed.isImage && parsed.url ? (
-                        <div className="space-y-1.5">
-                          <div
-                            onClick={() => setLightboxUrl(parsed.url!)}
-                            className="relative rounded-xl overflow-hidden cursor-pointer bg-[#111b21] max-h-[300px] flex items-center justify-center border border-white/5"
-                          >
-                            <img
-                              src={parsed.url}
-                              alt={parsed.alt || 'Shared Image'}
-                              className="w-full h-auto object-cover max-h-[300px]"
-                            />
-                          </div>
-                          {parsed.caption && (
-                            <p className="text-xs leading-relaxed px-1 break-words">{parsed.caption}</p>
-                          )}
-                        </div>
-                      ) : (
-                        <p className="break-words leading-relaxed text-xs sm:text-sm">{msg.body}</p>
-                      )}
-
-                      <div className="flex items-center justify-end gap-1 mt-1 text-[10px] text-[#8696a0]">
-                        <span>
-                          {msg.createdAt
-                            ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                            : ''}
-                        </span>
-                        {isMe &&
-                          (msg.status === 'sending' ? (
-                            <Clock className="w-3 h-3 animate-spin text-[#8696a0]" />
-                          ) : (
-                            <CheckCheck className="w-3.5 h-3.5 text-[#53bdeb]" />
-                          ))}
-                      </div>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-
-            {/* Quick Action Prompt Chips */}
-            <div className="px-3 py-1.5 bg-[#111b21] border-t border-[#202c33] flex items-center gap-1.5 overflow-x-auto flex-shrink-0 scrollbar-none">
-              {QUICK_PROMPTS.map((prompt, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => handleSendChatMessage(undefined, prompt)}
-                  className="px-2.5 py-1 bg-[#182229] hover:bg-[#202c33] border border-[#2a3942] rounded-full text-[11px] text-[#8696a0] hover:text-white whitespace-nowrap transition-colors cursor-pointer flex-shrink-0"
-                >
-                  {prompt}
-                </button>
-              ))}
-            </div>
-
-            {/* Chat Input Bar */}
-            <form
-              onSubmit={handleSendChatMessage}
-              className="p-2 sm:p-3 bg-[#202c33] border-t border-[#2a3942] flex items-center gap-2 flex-shrink-0"
-            >
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handleImageUpload}
-                className="hidden"
-              />
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                title="Attach photo or slip"
-                className="p-2 text-[#8696a0] hover:text-white hover:bg-[#2a3942] rounded-xl transition-colors cursor-pointer flex-shrink-0"
-              >
-                <ImageIcon className="w-4 h-4" />
-              </button>
-
-              <input
-                type="text"
-                value={chatInput}
-                onChange={(e) => setChatInput(e.target.value)}
-                placeholder="Type a message to shop owner..."
-                className="flex-1 bg-[#2a3942] border border-[#374248] focus:border-[#00a884] rounded-xl px-3 py-2 text-xs sm:text-sm text-white placeholder-[#8696a0] focus:outline-none"
-              />
-
-              <button
-                type="submit"
-                disabled={!chatInput.trim() || isSendingChat}
-                className="p-2 sm:px-3 sm:py-2 bg-[#00a884] hover:bg-[#02906f] disabled:opacity-40 text-[#111b21] font-bold rounded-xl transition-all shadow-md flex items-center justify-center gap-1 cursor-pointer flex-shrink-0"
-              >
-                <Send className="w-4 h-4" />
-                <span className="text-xs font-bold hidden sm:inline">Send</span>
-              </button>
-            </form>
-          </div>
+          <LetterboxLiveChat
+            existingInquiry={existingInquiry}
+            customerHandle={customerHandle}
+            authedUser={authedUser}
+            messages={messages}
+            chatInput={chatInput}
+            isSendingChat={isSendingChat}
+            isNoteExpanded={isNoteExpanded}
+            messagesContainerRef={messagesContainerRef}
+            fileInputRef={fileInputRef}
+            onToggleNoteExpanded={() => setIsNoteExpanded((prev) => !prev)}
+            onChangeChatInput={setChatInput}
+            onSendChatMessage={handleSendChatMessage}
+            onImageUpload={handleImageUpload}
+            onOpenLightbox={(url) => setLightboxUrl(url)}
+          />
         ) : isPendingReview || submitted ? (
-          /* ==================================================================== */
-          /* 3. PENDING REVIEW STATUS (WAITING FOR MERCHANT TO ACCEPT)            */
-          /* ==================================================================== */
-          <div className="flex-1 overflow-y-auto p-4 sm:p-6 flex items-center justify-center">
-            <div className="max-w-lg w-full bg-[#111b21] border border-[#00a884]/40 rounded-3xl p-6 sm:p-8 space-y-5 shadow-2xl text-center animate-fadeIn">
-              <div className="relative w-16 h-16 rounded-3xl bg-[#00a884]/20 border border-[#00a884]/40 flex items-center justify-center mx-auto text-[#00a884] shadow-inner">
-                <Clock className="w-8 h-8" />
-                <span className="absolute -top-1 -right-1 flex h-4 w-4">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#00a884] opacity-75" />
-                  <span className="relative inline-flex rounded-full h-4 w-4 bg-[#00a884]" />
-                </span>
-              </div>
-
-              <div className="space-y-1.5">
-                <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#00a884] bg-[#00a884]/10 border border-[#00a884]/30 px-3 py-1 rounded-full">
-                  Status: Pending Review
-                </span>
-                <h2 className="text-base sm:text-lg font-bold text-white tracking-tight">
-                  Inquiry Note Placed in Letterbox!
-                </h2>
-                <p className="text-xs text-[#8696a0] max-w-sm mx-auto leading-relaxed">
-                  Your note is recorded directly on <strong>{profile?.displayName || 'Merchant'}</strong>'s edge node. As soon as the merchant accepts, this window will automatically unlock into live chat!
-                </p>
-              </div>
-
-              {/* Inquiry Note Card Preview */}
-              <div className="p-3.5 bg-[#182229] border border-[#222e35] rounded-2xl text-left text-xs space-y-2 max-w-md mx-auto">
-                <div className="flex items-center justify-between text-[11px] text-[#8696a0]">
-                  <span className="font-semibold text-[#00a884]">{existingInquiry?.category || selectedCategory}</span>
-                  <span className="flex items-center gap-1 text-[10px]">
-                    <Clock className="w-3 h-3" />
-                    <span>Awaiting Merchant</span>
-                  </span>
-                </div>
-                <p className="p-3 bg-[#0b141a] rounded-xl text-[#e9edef] text-xs border border-[#222e35] font-sans leading-relaxed break-words">
-                  "{existingInquiry?.content || noteContent}"
-                </p>
-              </div>
-
-              {/* Instant Check / Open Live Chat Button */}
-              <button
-                type="button"
-                onClick={syncInquiryAndMessages}
-                className="w-full py-2.5 bg-[#182229] hover:bg-[#202c33] border border-[#00a884]/40 text-[#00a884] hover:text-[#25d366] font-semibold rounded-xl text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm"
-              >
-                <MessageSquare className="w-4 h-4" />
-                <span>Check for Merchant Reply / Open Chat</span>
-              </button>
-
-              <div className="pt-2 border-t border-[#222e35] flex items-center justify-center gap-2 text-[11px] text-[#8696a0]">
-                <ShieldCheck className="w-4 h-4 text-[#00a884]" />
-                <span>Direct Edge SSE Active • Auto-unlocks when merchant replies</span>
-              </div>
-            </div>
-          </div>
+          <LetterboxPendingCard
+            profile={profile}
+            existingInquiry={existingInquiry}
+            selectedCategory={selectedCategory}
+            noteContent={noteContent}
+            onSyncInquiryAndMessages={syncInquiryAndMessages}
+          />
         ) : (
-          /* ==================================================================== */
-          /* 4. INITIAL 1-CARD INQUIRY FORM (FIRST TIME CUSTOMER COMPOSITION)    */
-          /* ==================================================================== */
-          <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
-            {/* Merchant Info Card */}
-            <div className="bg-[#111b21] border border-[#202c33] rounded-2xl p-4 sm:p-5 space-y-3 shadow-md">
-              <div className="flex items-start justify-between gap-3">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <h1 className="text-base sm:text-lg font-bold text-white tracking-tight">
-                      {profile?.displayName || 'Sovereign Merchant'}
-                    </h1>
-                    <span className="text-xs text-[#8696a0] font-mono">@{profile?.handle || shopHandle}</span>
-                  </div>
-                  <p className="text-xs text-[#8696a0] leading-relaxed">
-                    {profile?.bio || 'Welcome to our official sovereign storefront. Drop an inquiry note below for quick assistance.'}
-                  </p>
-                </div>
-                <div className="w-12 h-12 rounded-xl bg-[#182229] border border-[#2a3942] flex items-center justify-center text-[#00a884] flex-shrink-0">
-                  <Store className="w-6 h-6" />
-                </div>
-              </div>
-
-              {/* Quick Store Highlights */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-2 border-t border-[#202c33] text-[11px] text-[#8696a0]">
-                <div className="flex items-center gap-1.5">
-                  <MapPin className="w-3.5 h-3.5 text-[#00a884]" />
-                  <span className="truncate">{profile?.businessLocation || 'Kathmandu, Nepal'}</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <Clock className="w-3.5 h-3.5 text-[#00a884]" />
-                  <span className="truncate">{profile?.businessHours || 'Open Regular Hours'}</span>
-                </div>
-                <div className="flex items-center gap-1.5 col-span-2 sm:col-span-1">
-                  <Truck className="w-3.5 h-3.5 text-[#00a884]" />
-                  <span className="truncate">{profile?.deliveryInfo || 'Valley & Nationwide'}</span>
-                </div>
-              </div>
-
-              {/* Catalog Tags */}
-              {tagsList.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 pt-1">
-                  {tagsList.map((tag, idx) => (
-                    <span
-                      key={idx}
-                      className="px-2 py-0.5 rounded-md bg-[#182229] border border-[#222e35] text-[10px] text-[#8696a0]"
-                    >
-                      #{tag}
-                    </span>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* 1-CARD INQUIRY COMPOSITION BOX */}
-            <div className="bg-[#111b21] border border-[#202c33] rounded-2xl p-5 sm:p-6 space-y-4 shadow-lg">
-              {/* Identity Badge Header */}
-              <div className="flex items-center justify-between pb-3 border-b border-[#202c33] flex-wrap gap-2 text-xs">
-                <div className="flex items-center gap-2 text-[#8696a0]">
-                  <ShieldCheck className="w-4 h-4 text-[#00a884]" />
-                  <span>
-                    Inquiring as: <strong className="text-white">{senderName || authedUser?.display_name}</strong>
-                  </span>
-                  {senderEmail && (
-                    <span className="text-[10px] text-[#8696a0] font-mono">({senderEmail})</span>
-                  )}
-                </div>
-                {sovereignNode && (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#00a884]/10 text-[#00a884] border border-[#00a884]/30 text-[10px]">
-                    <Sparkles className="w-3 h-3" />
-                    Sovereign Node Linked
-                  </span>
-                )}
-              </div>
-
-              {errorMessage && (
-                <div className="p-3 bg-red-950/40 border border-red-800/50 rounded-xl text-red-300 text-xs flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                  <span>{errorMessage}</span>
-                </div>
-              )}
-
-              <form onSubmit={handleSubmit} className="space-y-4">
-                {/* Category Selection */}
-                <div>
-                  <label className="block text-xs font-semibold text-[#aebac1] mb-1.5">
-                    Select Topic
-                  </label>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                    {INQUIRY_CATEGORIES.map((cat) => (
-                      <button
-                        key={cat.id}
-                        type="button"
-                        onClick={() => setSelectedCategory(cat.label)}
-                        className={`p-2 rounded-xl text-xs font-medium text-left transition-all border cursor-pointer ${
-                          selectedCategory === cat.label
-                            ? 'bg-[#00a884]/15 border-[#00a884] text-white shadow-sm'
-                            : 'bg-[#182229] border-[#222e35] text-[#8696a0] hover:text-white hover:border-[#2a3942]'
-                        }`}
-                      >
-                        <div className="font-semibold truncate">{cat.label}</div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Quick Zero-Invocation FAQ Chips */}
-                <div className="space-y-1.5">
-                  <span className="text-[11px] text-[#8696a0] font-medium flex items-center gap-1">
-                    <Sparkles className="w-3 h-3 text-[#00a884]" />
-                    <span>Quick Questions (Instant 0ms Answer):</span>
-                  </span>
-                  <div className="flex flex-wrap gap-1.5">
-                    {faqChips.map((chip, idx) => (
-                      <button
-                        key={idx}
-                        type="button"
-                        onClick={() => setNoteContent(chip.query)}
-                        className="px-2.5 py-1 rounded-lg bg-[#182229] hover:bg-[#202c33] border border-[#2a3942] hover:border-[#00a884]/40 text-[11px] text-[#8696a0] hover:text-[#00a884] transition-all cursor-pointer"
-                      >
-                        {chip.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Instant Zero-Invocation Bot Answer Box */}
-                {botMatch && (
-                  <div className="p-3.5 bg-[#00a884]/10 border border-[#00a884]/40 rounded-2xl space-y-2 animate-fadeIn shadow-inner">
-                    <div className="flex items-center justify-between text-xs font-bold text-[#00a884]">
-                      <span className="flex items-center gap-1.5">
-                        <Sparkles className="w-4 h-4 animate-spin-slow" />
-                        {botMatch.title}
-                      </span>
-                      <span className="text-[10px] bg-[#00a884]/25 text-[#00a884] border border-[#00a884]/30 px-2 py-0.5 rounded-full font-mono">
-                        ⚡ 0-Wait Instant
-                      </span>
-                    </div>
-                    <p className="text-xs text-[#e9edef] leading-relaxed font-sans font-medium">
-                      {botMatch.answer}
-                    </p>
-                    {botMatch.nepaliSnippet && (
-                      <p className="text-[11px] text-[#8696a0] italic border-t border-[#00a884]/20 pt-1.5">
-                        {botMatch.nepaliSnippet}
-                      </p>
-                    )}
-                    <div className="pt-1 flex items-center justify-between text-[11px]">
-                      <span className="text-[#8696a0]">Question answered? No need to wait for reply!</span>
-                      <button
-                        type="button"
-                        onClick={() => setNoteContent('')}
-                        className="text-[#00a884] hover:underline font-semibold cursor-pointer"
-                      >
-                        Clear
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {/* Inquiry Note Content */}
-                <div>
-                  <label className="block text-xs font-semibold text-[#aebac1] mb-1 flex items-center justify-between">
-                    <span>Your Note to {profile?.displayName || 'Merchant'} *</span>
-                    <span className="text-[10px] text-[#8696a0]">{noteContent.length}/500 chars</span>
-                  </label>
-                  <textarea
-                    rows={4}
-                    required
-                    maxLength={500}
-                    value={noteContent}
-                    onChange={(e) => setNoteContent(e.target.value)}
-                    placeholder="Ask about pricing, current stock, color options, or delivery timelines to your city..."
-                    className="w-full bg-[#182229] border border-[#2a3942] focus:border-[#00a884] rounded-xl p-3 text-xs text-white placeholder-[#8696a0] focus:outline-none leading-relaxed resize-none"
-                  />
-                </div>
-
-                {/* Optional Contact Phone */}
-                <div>
-                  <label className="block text-xs font-semibold text-[#aebac1] mb-1 flex items-center gap-1.5">
-                    <Phone className="w-3.5 h-3.5 text-[#00a884]" />
-                    <span>Contact Phone / WhatsApp (Optional)</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={senderContact.startsWith('@') ? '' : senderContact}
-                    onChange={(e) => setSenderContact(e.target.value)}
-                    placeholder="e.g. 9801234567 (for courier coordination)"
-                    className="w-full bg-[#182229] border border-[#2a3942] focus:border-[#00a884] rounded-xl px-3 py-2 text-xs text-white placeholder-[#8696a0] focus:outline-none"
-                  />
-                </div>
-
-                {/* Submit CTA */}
-                <button
-                  type="submit"
-                  disabled={submitting || !noteContent.trim()}
-                  className="w-full py-3 bg-[#00a884] hover:bg-[#02906f] text-[#111b21] font-bold rounded-xl text-xs transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-                >
-                  <Send className="w-4 h-4" />
-                  <span>{submitting ? 'Placing Note in Letterbox...' : 'Drop 1-Card Inquiry Note'}</span>
-                </button>
-                <p className="text-[11px] text-[#8696a0] text-center">
-                  🛡️ Direct Cloudflare D1 Delivery • Zero Middleman Message Storage • Anti-Bot Shielded
-                </p>
-              </form>
-            </div>
-          </div>
+          <LetterboxCompositionForm
+            profile={profile}
+            shopHandle={shopHandle}
+            tagsList={tagsList}
+            senderName={senderName}
+            senderEmail={senderEmail}
+            senderContact={senderContact}
+            sovereignNode={sovereignNode}
+            authedUser={authedUser}
+            selectedCategory={selectedCategory}
+            faqChips={faqChips}
+            botMatch={botMatch}
+            noteContent={noteContent}
+            errorMessage={errorMessage}
+            submitting={submitting}
+            onSelectCategory={setSelectedCategory}
+            onChangeNoteContent={setNoteContent}
+            onChangeSenderContact={setSenderContact}
+            onSubmit={handleSubmit}
+          />
         )}
       </main>
 
