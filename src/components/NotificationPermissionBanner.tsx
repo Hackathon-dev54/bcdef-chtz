@@ -174,50 +174,50 @@ export const NotificationPermissionBanner: React.FC<NotificationPermissionBanner
 
       {/* iOS Instructions Modal */}
       {showIosModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 animate-in fade-in">
-          <div className="w-full max-w-sm rounded-2xl bg-[#111b21] border border-[#222d34] p-5 shadow-2xl text-slate-200">
-            <div className="flex items-center justify-between pb-3 border-b border-[#222d34]">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-in fade-in select-none">
+          <div className="w-full max-w-sm rounded-2xl bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 p-5 shadow-2xl text-zinc-800 dark:text-zinc-200 transition-colors">
+            <div className="flex items-center justify-between pb-3 border-b border-zinc-200 dark:border-zinc-800">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-[#00a884]/20 flex items-center justify-center text-[#00a884]">
+                <div className="w-8 h-8 rounded-lg bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-900 dark:text-zinc-100 border border-zinc-200 dark:border-zinc-700">
                   <Smartphone className="w-4 h-4" />
                 </div>
-                <h3 className="text-sm font-semibold text-white">iPhone Notifications Setup</h3>
+                <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">iPhone Notifications Setup</h3>
               </div>
               <button
                 onClick={() => setShowIosModal(false)}
-                className="p-1 rounded-md text-slate-400 hover:text-white hover:bg-[#202c33] transition"
+                className="p-1 rounded-md text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="mt-4 space-y-3.5 text-xs text-[#8696a0] leading-relaxed">
-              <p className="text-white font-medium">
+            <div className="mt-4 space-y-3.5 text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
+              <p className="text-zinc-900 dark:text-zinc-100 font-medium">
                 Apple restricts Web Push to installed Home Screen apps on iOS 16.4+:
               </p>
               <div className="space-y-2.5 pt-1">
                 <div className="flex items-start gap-2.5">
-                  <span className="w-5 h-5 rounded-full bg-[#00a884] text-slate-950 flex items-center justify-center shrink-0 font-bold">1</span>
-                  <p>In Safari, tap the <strong className="text-white">Share</strong> button (the box with an arrow pointing up at the bottom).</p>
+                  <span className="w-5 h-5 rounded-full bg-zinc-950 text-white dark:bg-white dark:text-zinc-950 flex items-center justify-center shrink-0 font-bold text-[10px]">1</span>
+                  <p>In Safari, tap the <strong className="text-zinc-900 dark:text-zinc-100">Share</strong> button (box with upward arrow).</p>
                 </div>
                 <div className="flex items-start gap-2.5">
-                  <span className="w-5 h-5 rounded-full bg-[#00a884] text-slate-950 flex items-center justify-center shrink-0 font-bold">2</span>
-                  <p>Scroll down the menu and tap <strong className="text-white">Add to Home Screen</strong>.</p>
+                  <span className="w-5 h-5 rounded-full bg-zinc-950 text-white dark:bg-white dark:text-zinc-950 flex items-center justify-center shrink-0 font-bold text-[10px]">2</span>
+                  <p>Scroll down the menu and tap <strong className="text-zinc-900 dark:text-zinc-100">Add to Home Screen</strong>.</p>
                 </div>
                 <div className="flex items-start gap-2.5">
-                  <span className="w-5 h-5 rounded-full bg-[#00a884] text-slate-950 flex items-center justify-center shrink-0 font-bold">3</span>
-                  <p>Open the new <strong className="text-white">Chatze</strong> icon from your Home Screen.</p>
+                  <span className="w-5 h-5 rounded-full bg-zinc-950 text-white dark:bg-white dark:text-zinc-950 flex items-center justify-center shrink-0 font-bold text-[10px]">3</span>
+                  <p>Open the new <strong className="text-zinc-900 dark:text-zinc-100">Chatze</strong> icon from your Home Screen.</p>
                 </div>
                 <div className="flex items-start gap-2.5">
-                  <span className="w-5 h-5 rounded-full bg-[#00a884] text-slate-950 flex items-center justify-center shrink-0 font-bold">4</span>
-                  <p>Tap <strong className="text-[#00a884]">Enable Notifications</strong> when prompted to allow lock-screen alerts.</p>
+                  <span className="w-5 h-5 rounded-full bg-zinc-950 text-white dark:bg-white dark:text-zinc-950 flex items-center justify-center shrink-0 font-bold text-[10px]">4</span>
+                  <p>Tap <strong className="text-zinc-900 dark:text-zinc-100">Enable Notifications</strong> when prompted to allow lock-screen alerts.</p>
                 </div>
               </div>
             </div>
 
             <button
               onClick={() => setShowIosModal(false)}
-              className="mt-5 w-full rounded-lg bg-[#00a884] py-2 text-xs font-semibold text-slate-950 hover:bg-[#008f6f] transition"
+              className="mt-5 w-full rounded-xl bg-zinc-950 text-white dark:bg-white dark:text-zinc-950 hover:bg-zinc-800 dark:hover:bg-zinc-100 py-2.5 text-xs font-bold transition-colors cursor-pointer shadow-xs"
             >
               Got It
             </button>

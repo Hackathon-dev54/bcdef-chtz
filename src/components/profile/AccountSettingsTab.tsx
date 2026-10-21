@@ -56,50 +56,50 @@ export const AccountSettingsTab: React.FC<AccountSettingsTabProps> = ({
   setBio,
 }) => {
   return (
-    <div className="space-y-4 text-xs">
+    <div className="space-y-4 text-xs select-none">
       {/* Account Type Selector Card */}
-      <div className="p-3.5 bg-[#0b141a] border border-[#202c33] rounded-xl space-y-3">
-        <label className="font-bold text-[#e9edef] block text-[11px] uppercase tracking-wider text-[#8696a0]">
-          Account Type (Nepal First Mode)
+      <div className="p-4 bg-zinc-50 dark:bg-zinc-900/60 border border-zinc-200 dark:border-zinc-800 rounded-2xl space-y-3">
+        <label className="font-bold text-zinc-900 dark:text-zinc-100 block text-[11px] uppercase tracking-wider">
+          Account Type
         </label>
-        <div className="grid grid-cols-2 gap-2.5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
           <button
             type="button"
             onClick={() => setAccountType('personal')}
-            className={`p-3 rounded-xl border text-left transition-all flex flex-col gap-1.5 ${
+            className={`p-3.5 rounded-xl border text-left transition-all flex flex-col gap-1.5 cursor-pointer ${
               accountType === 'personal'
-                ? 'bg-[#00a884]/15 border-[#00a884] text-[#e9edef]'
-                : 'bg-[#111b21] border-[#202c33] text-[#8696a0] hover:border-[#8696a0]/50'
+                ? 'bg-white dark:bg-zinc-800 border-zinc-900 dark:border-white text-zinc-900 dark:text-zinc-100 shadow-xs'
+                : 'bg-white/60 dark:bg-zinc-900/40 border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400 hover:border-zinc-400 dark:hover:border-zinc-600'
             }`}
           >
             <div className="flex items-center justify-between">
-              <span className="font-bold text-xs flex items-center gap-1.5 text-[#e9edef]">
-                <User className="w-3.5 h-3.5 text-[#00a884]" /> Personal Account
+              <span className="font-bold text-xs flex items-center gap-1.5 text-zinc-900 dark:text-zinc-100">
+                <User className="w-3.5 h-3.5" /> Personal Account
               </span>
-              {accountType === 'personal' && <Check className="w-3.5 h-3.5 text-[#00a884]" />}
+              {accountType === 'personal' && <Check className="w-4 h-4 text-zinc-900 dark:text-zinc-100" />}
             </div>
-            <p className="text-[10px] text-[#8696a0] leading-snug">
-              For individual chatting, friends & family. Protected with private Friend PIN.
+            <p className="text-[11px] text-zinc-500 dark:text-zinc-400 leading-snug">
+              For direct personal chatting and federation. Protected with private Friend PIN.
             </p>
           </button>
 
           <button
             type="button"
             onClick={() => setAccountType('business')}
-            className={`p-3 rounded-xl border text-left transition-all flex flex-col gap-1.5 ${
+            className={`p-3.5 rounded-xl border text-left transition-all flex flex-col gap-1.5 cursor-pointer ${
               accountType === 'business'
-                ? 'bg-amber-500/15 border-amber-500 text-[#e9edef]'
-                : 'bg-[#111b21] border-[#202c33] text-[#8696a0] hover:border-[#8696a0]/50'
+                ? 'bg-white dark:bg-zinc-800 border-zinc-900 dark:border-white text-zinc-900 dark:text-zinc-100 shadow-xs'
+                : 'bg-white/60 dark:bg-zinc-900/40 border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400 hover:border-zinc-400 dark:hover:border-zinc-600'
             }`}
           >
             <div className="flex items-center justify-between">
-              <span className="font-bold text-xs flex items-center gap-1.5 text-[#e9edef]">
-                <Store className="w-3.5 h-3.5 text-amber-400" /> Business / Shop
+              <span className="font-bold text-xs flex items-center gap-1.5 text-zinc-900 dark:text-zinc-100">
+                <Store className="w-3.5 h-3.5" /> Business / Shop Mode
               </span>
-              {accountType === 'business' && <Check className="w-3.5 h-3.5 text-amber-400" />}
+              {accountType === 'business' && <Check className="w-4 h-4 text-zinc-900 dark:text-zinc-100" />}
             </div>
-            <p className="text-[10px] text-[#8696a0] leading-snug">
-              For pasals, brands & freelancers. Activates customer inquiry letterbox.
+            <p className="text-[11px] text-zinc-500 dark:text-zinc-400 leading-snug">
+              For brands, shops & freelancers. Activates public letterbox and customer storefront.
             </p>
           </button>
         </div>
@@ -107,7 +107,7 @@ export const AccountSettingsTab: React.FC<AccountSettingsTabProps> = ({
 
       {/* Display Name */}
       <div className="space-y-1.5">
-        <label className="font-semibold text-[#8696a0]">
+        <label className="font-semibold text-zinc-700 dark:text-zinc-300">
           {accountType === 'business' ? 'Shop / Brand Name' : 'Your Display Name'}
         </label>
         <input
@@ -116,18 +116,18 @@ export const AccountSettingsTab: React.FC<AccountSettingsTabProps> = ({
           onChange={(e) => setDisplayName(e.target.value)}
           placeholder={accountType === 'business' ? 'e.g. Kathmandu Threads' : 'e.g. Aarav Sharma'}
           required
-          className="w-full px-3 py-2 bg-[#0b141a] border border-[#202c33] rounded-xl text-xs text-[#e9edef] placeholder-[#8696a0]/60 focus:outline-none focus:border-[#00a884]"
+          className="w-full px-3.5 py-2.5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl text-xs text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-500 focus:outline-none focus:border-zinc-900 dark:focus:border-zinc-100 transition-colors"
         />
       </div>
 
       {/* Handle (Read-only instance handle) */}
       <div className="space-y-1.5">
-        <label className="font-semibold text-[#8696a0]">Handle (@Username)</label>
-        <div className="flex items-center px-3 py-2 bg-[#0b141a]/60 border border-[#202c33] rounded-xl text-xs text-[#8696a0]">
-          <span className="text-[#00a884] font-bold mr-1">@</span>
-          <span>{handle}</span>
-          <span className="ml-auto text-[10px] bg-[#202c33] px-2 py-0.5 rounded text-[#8696a0]">
-            Primary Admin
+        <label className="font-semibold text-zinc-700 dark:text-zinc-300">Handle (@Username)</label>
+        <div className="flex items-center px-3.5 py-2.5 bg-zinc-50 dark:bg-zinc-900/60 border border-zinc-200 dark:border-zinc-800 rounded-xl text-xs text-zinc-600 dark:text-zinc-400">
+          <span className="font-bold text-zinc-900 dark:text-zinc-100 mr-1">@</span>
+          <span className="font-medium text-zinc-900 dark:text-zinc-100">{handle}</span>
+          <span className="ml-auto text-[10px] bg-zinc-200 dark:bg-zinc-800 px-2 py-0.5 rounded-full font-semibold text-zinc-700 dark:text-zinc-300">
+            Primary Node Admin
           </span>
         </div>
       </div>
@@ -136,103 +136,103 @@ export const AccountSettingsTab: React.FC<AccountSettingsTabProps> = ({
       {accountType === 'business' && (
         <>
           <div className="space-y-1.5">
-            <label className="font-semibold text-amber-400">Business Category</label>
+            <label className="font-semibold text-zinc-700 dark:text-zinc-300">Business Category</label>
             <select
               value={businessCategory}
               onChange={(e) => setBusinessCategory(e.target.value)}
-              className="w-full px-3 py-2 bg-[#0b141a] border border-[#202c33] rounded-xl text-xs text-[#e9edef] focus:outline-none focus:border-amber-400"
+              className="w-full px-3.5 py-2.5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl text-xs text-zinc-900 dark:text-zinc-100 focus:outline-none focus:border-zinc-900 dark:focus:border-zinc-100 transition-colors"
             >
               {BUSINESS_CATEGORIES.map((cat) => (
-                <option key={cat} value={cat} className="bg-[#111b21] text-[#e9edef]">
+                <option key={cat} value={cat} className="bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100">
                   {cat}
                 </option>
               ))}
             </select>
           </div>
 
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             <div className="space-y-1.5">
-              <label className="font-semibold text-[#8696a0]">City / Location</label>
+              <label className="font-semibold text-zinc-700 dark:text-zinc-300">City / Location</label>
               <input
                 type="text"
                 value={businessLocation}
                 onChange={(e) => setBusinessLocation(e.target.value)}
                 placeholder="e.g. Thamel, Kathmandu"
-                className="w-full px-3 py-2 bg-[#0b141a] border border-[#202c33] rounded-xl text-xs text-[#e9edef] placeholder-[#8696a0]/60 focus:outline-none focus:border-[#00a884]"
+                className="w-full px-3.5 py-2.5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl text-xs text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-500 focus:outline-none focus:border-zinc-900 dark:focus:border-zinc-100 transition-colors"
               />
             </div>
 
             <div className="space-y-1.5">
-              <label className="font-semibold text-[#8696a0]">Contact Phone / WhatsApp</label>
+              <label className="font-semibold text-zinc-700 dark:text-zinc-300">Contact Phone / WhatsApp</label>
               <input
                 type="text"
                 value={businessPhone}
                 onChange={(e) => setBusinessPhone(e.target.value)}
                 placeholder="e.g. 9841XXXXXX"
-                className="w-full px-3 py-2 bg-[#0b141a] border border-[#202c33] rounded-xl text-xs text-[#e9edef] placeholder-[#8696a0]/60 focus:outline-none focus:border-[#00a884]"
+                className="w-full px-3.5 py-2.5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl text-xs text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-500 focus:outline-none focus:border-zinc-900 dark:focus:border-zinc-100 transition-colors"
               />
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             <div className="space-y-1.5">
-              <label className="font-semibold text-[#8696a0]">Working Hours</label>
+              <label className="font-semibold text-zinc-700 dark:text-zinc-300">Working Hours</label>
               <input
                 type="text"
                 value={businessHours}
                 onChange={(e) => setBusinessHours(e.target.value)}
                 placeholder="e.g. Sun - Fri: 10 AM - 7 PM"
-                className="w-full px-3 py-2 bg-[#0b141a] border border-[#202c33] rounded-xl text-xs text-[#e9edef] placeholder-[#8696a0]/60 focus:outline-none focus:border-[#00a884]"
+                className="w-full px-3.5 py-2.5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl text-xs text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-500 focus:outline-none focus:border-zinc-900 dark:focus:border-zinc-100 transition-colors"
               />
             </div>
 
             <div className="space-y-1.5">
-              <label className="font-semibold text-[#8696a0]">Delivery Coverage</label>
+              <label className="font-semibold text-zinc-700 dark:text-zinc-300">Delivery Coverage</label>
               <input
                 type="text"
                 value={deliveryInfo}
                 onChange={(e) => setDeliveryInfo(e.target.value)}
                 placeholder="e.g. All Nepal Courier & Valley"
-                className="w-full px-3 py-2 bg-[#0b141a] border border-[#202c33] rounded-xl text-xs text-[#e9edef] placeholder-[#8696a0]/60 focus:outline-none focus:border-[#00a884]"
+                className="w-full px-3.5 py-2.5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl text-xs text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-500 focus:outline-none focus:border-zinc-900 dark:focus:border-zinc-100 transition-colors"
               />
             </div>
           </div>
 
           <div className="space-y-1.5">
-            <label className="font-semibold text-[#8696a0]">Specialties & Tags (Comma Separated)</label>
+            <label className="font-semibold text-zinc-700 dark:text-zinc-300">Specialties & Tags (Comma Separated)</label>
             <input
               type="text"
               value={catalogTags}
               onChange={(e) => setCatalogTags(e.target.value)}
               placeholder="e.g. Jackets, Hoodies, Wholesale, Cash on Delivery"
-              className="w-full px-3 py-2 bg-[#0b141a] border border-[#202c33] rounded-xl text-xs text-[#e9edef] placeholder-[#8696a0]/60 focus:outline-none focus:border-[#00a884]"
+              className="w-full px-3.5 py-2.5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl text-xs text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-500 focus:outline-none focus:border-zinc-900 dark:focus:border-zinc-100 transition-colors"
             />
           </div>
 
-          {/* Custom FAQ Bot (Zero-Invocation, runs in customer's browser) */}
-          <div className="space-y-2 p-3 bg-[#0b141a]/60 border border-[#00a884]/30 rounded-xl">
+          {/* Custom FAQ Bot */}
+          <div className="space-y-2 p-3.5 bg-zinc-50 dark:bg-zinc-900/60 border border-zinc-200 dark:border-zinc-800 rounded-2xl">
             <div className="flex items-center justify-between gap-2 flex-wrap">
-              <label className="font-semibold text-[#00a884]">
+              <label className="font-bold text-zinc-900 dark:text-zinc-100 text-xs">
                 Letterbox FAQ Bot (Instant Answers)
               </label>
               <div className="flex items-center gap-1.5">
                 <a
                   href="/samples/sample-faqs.txt"
                   download
-                  className="px-2 py-1 bg-[#202c33] hover:bg-[#2a3942] rounded-lg text-[10px] text-[#8696a0] hover:text-white"
+                  className="px-2 py-1 bg-zinc-200 dark:bg-zinc-800 hover:bg-zinc-300 dark:hover:bg-zinc-700 rounded-lg text-[10px] text-zinc-700 dark:text-zinc-300 transition-colors"
                 >
                   Sample .txt
                 </a>
                 <a
                   href="/samples/sample-faqs.json"
                   download
-                  className="px-2 py-1 bg-[#202c33] hover:bg-[#2a3942] rounded-lg text-[10px] text-[#8696a0] hover:text-white"
+                  className="px-2 py-1 bg-zinc-200 dark:bg-zinc-800 hover:bg-zinc-300 dark:hover:bg-zinc-700 rounded-lg text-[10px] text-zinc-700 dark:text-zinc-300 transition-colors"
                 >
                   Sample .json
                 </a>
                 <label
                   htmlFor="faq-file-upload"
-                  className="px-2 py-1 bg-[#00a884] hover:bg-[#02906f] rounded-lg text-[10px] font-bold text-[#111b21] cursor-pointer"
+                  className="px-2.5 py-1 bg-zinc-950 text-white dark:bg-white dark:text-zinc-950 hover:bg-zinc-800 dark:hover:bg-zinc-100 rounded-lg text-[10px] font-bold cursor-pointer transition-colors shadow-xs"
                 >
                   Upload File
                 </label>
@@ -245,21 +245,21 @@ export const AccountSettingsTab: React.FC<AccountSettingsTabProps> = ({
                 />
               </div>
             </div>
-            <p className="text-[10px] text-[#8696a0] leading-relaxed">
+            <p className="text-[10px] text-zinc-500 dark:text-zinc-400 leading-relaxed">
               Paste or upload <strong>.json</strong>, <strong>.md</strong> or <strong>.txt</strong>. Use
-              <code className="mx-1 text-[#00a884]">Q:</code> /
-              <code className="mx-1 text-[#00a884]">A:</code> /
-              <code className="mx-1 text-[#00a884]">K:</code>(keywords, optional). Customers get the answer instantly with zero server calls. Max 50 FAQs.
+              <code className="mx-1 text-zinc-900 dark:text-zinc-100 font-bold">Q:</code> /
+              <code className="mx-1 text-zinc-900 dark:text-zinc-100 font-bold">A:</code> /
+              <code className="mx-1 text-zinc-900 dark:text-zinc-100 font-bold">K:</code>(keywords, optional). Customers get the answer instantly with zero server calls. Max 50 FAQs.
             </p>
             <textarea
-              rows={7}
+              rows={6}
               value={faqText}
               onChange={(e) => setFaqText(e.target.value)}
               placeholder={'Q: Do you accept eSewa?\nA: Yes! eSewa, Khalti, Fonepay and Cash on Delivery.\nK: esewa, khalti, payment, qr\n\nQ: Return policy?\nA: Exchange within 7 days with bill.'}
-              className="w-full px-3 py-2 bg-[#0b141a] border border-[#202c33] rounded-xl text-[11px] font-mono text-[#e9edef] placeholder-[#8696a0]/50 focus:outline-none focus:border-[#00a884] resize-y"
+              className="w-full px-3.5 py-2.5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl text-[11px] font-mono text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-500 focus:outline-none focus:border-zinc-900 dark:focus:border-zinc-100 resize-y transition-colors"
             />
             <div className="flex items-center justify-between text-[10px]">
-              <span className={parsedFaqsLength ? 'text-[#00a884]' : 'text-[#8696a0]'}>
+              <span className={parsedFaqsLength ? 'text-zinc-900 dark:text-zinc-100 font-medium' : 'text-zinc-500 dark:text-zinc-400'}>
                 {parsedFaqsLength
                   ? `✓ ${parsedFaqsLength} FAQ${parsedFaqsLength > 1 ? 's' : ''} detected — click Save to publish`
                   : faqText.trim()
@@ -270,20 +270,20 @@ export const AccountSettingsTab: React.FC<AccountSettingsTabProps> = ({
                 <button
                   type="button"
                   onClick={() => setFaqText('')}
-                  className="text-red-400 hover:underline cursor-pointer"
+                  className="text-rose-500 hover:underline cursor-pointer"
                 >
                   Clear
                 </button>
               )}
             </div>
-            {faqUploadError && <p className="text-[10px] text-red-400">{faqUploadError}</p>}
+            {faqUploadError && <p className="text-[10px] text-rose-500">{faqUploadError}</p>}
           </div>
         </>
       )}
 
       {/* Bio / Tagline */}
       <div className="space-y-1.5">
-        <label className="font-semibold text-[#8696a0]">
+        <label className="font-semibold text-zinc-700 dark:text-zinc-300">
           {accountType === 'business' ? 'Shop Description / Customer Note' : 'Bio / Status'}
         </label>
         <textarea
@@ -295,7 +295,7 @@ export const AccountSettingsTab: React.FC<AccountSettingsTabProps> = ({
               ? 'e.g. Premium streetwear and handicrafts. Delivery all across Nepal (eSewa / COD).'
               : 'e.g. Available for coffee in Thamel. Ping me anytime.'
           }
-          className="w-full px-3 py-2 bg-[#0b141a] border border-[#202c33] rounded-xl text-xs text-[#e9edef] placeholder-[#8696a0]/60 focus:outline-none focus:border-[#00a884] resize-none"
+          className="w-full px-3.5 py-2.5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl text-xs text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-500 focus:outline-none focus:border-zinc-900 dark:focus:border-zinc-100 resize-none transition-colors"
         />
       </div>
     </div>

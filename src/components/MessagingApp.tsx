@@ -14,6 +14,7 @@ import {
 import { NotificationPermissionBanner } from './NotificationPermissionBanner'
 import { OfflineIndicator } from './OfflineIndicator'
 import { ProfileSettingsModal } from './ProfileSettingsModal'
+import { SettingsPage } from './SettingsPage'
 import {
   type Conversation,
   type ChatMessage,
@@ -71,6 +72,7 @@ export function MessagingApp({
   const [showAddFriendModal, setShowAddFriendModal] = useState(false)
   const [showIdentityModal, setShowIdentityModal] = useState(false)
   const [showProfileModal, setShowProfileModal] = useState(false)
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [currentDisplayName, setCurrentDisplayName] = useState(businessName || currentUser.display_name)
   const [copiedLink, setCopiedLink] = useState(false)
 
@@ -981,11 +983,9 @@ export function MessagingApp({
         currentDisplayName={currentDisplayName}
         theme={theme}
         onToggleTheme={toggleTheme}
-        onOpenProfile={() => setShowProfileModal(true)}
-        onOpenIdentity={() => setShowIdentityModal(true)}
-        onOpenQr={() => setShowQrModal(true)}
-        onLogout={onLogout}
+        onOpenSettings={() => setIsSettingsOpen(true)}
         onFocusSearch={() => {
+          setIsSettingsOpen(false)
           searchInputRef.current?.focus()
         }}
       />
@@ -996,7 +996,7 @@ export function MessagingApp({
         {/* 1. Left Sidebar */}
         <aside
           className={`${
-            activeConv ? 'hidden md:flex' : 'flex'
+            (activeConv || isSettingsOpen) ? 'hidden md:flex' : 'flex'
           } w-full md:w-80 lg:w-96 border-r border-zinc-200 dark:border-zinc-800/80 bg-white dark:bg-[#121214] flex-col shrink-0 h-full transition-colors`}
         >
           {/* Header Bar */}
@@ -1037,17 +1037,23 @@ export function MessagingApp({
                 conversations={conversations}
                 filteredConversations={filteredConversations}
                 activeConv={activeConv}
-                setActiveConv={setActiveConv}
+                setActiveConv={(conv) => {
+                  setIsSettingsOpen(false)
+                  setActiveConv(conv)
+                }}
                 handleReplyInquiry={handleReplyInquiry}
                 handleDismissInquiry={handleDismissInquiry}
                 replyingInquiryId={replyingInquiryId}
-                onOpenProfile={() => setShowProfileModal(true)}
+                onOpenProfile={() => setIsSettingsOpen(true)}
               />
             ) : (
               <ConversationList
                 conversations={filteredConversations}
                 activeConv={activeConv}
-                setActiveConv={setActiveConv}
+                setActiveConv={(conv) => {
+                  setIsSettingsOpen(false)
+                  setActiveConv(conv)
+                }}
                 inboxFilter={inboxFilter}
                 onOpenConnectContact={() => setShowAddFriendModal(true)}
               />
@@ -1058,17 +1064,31 @@ export function MessagingApp({
           <SidebarFooter
             currentUser={currentUser}
             currentDisplayName={currentDisplayName}
-            onOpenProfile={() => setShowProfileModal(true)}
+            onOpenProfile={() => setIsSettingsOpen(true)}
           />
         </aside>
 
-        {/* 2. Main Chat Panel */}
+        {/* 2. Main Panel: Settings Page or Active Chat */}
         <main
           className={`${
-            !activeConv ? 'hidden md:flex' : 'flex'
+            (!activeConv && !isSettingsOpen) ? 'hidden md:flex' : 'flex'
           } flex-1 flex-col bg-zinc-50/50 dark:bg-[#0e0e10] min-w-0 relative w-full h-full transition-colors`}
         >
-          {activeConv ? (
+          {isSettingsOpen ? (
+            <SettingsPage
+              currentUser={currentUser}
+              currentDisplayName={currentDisplayName}
+              onBack={() => setIsSettingsOpen(false)}
+              onProfileUpdated={(updated) => {
+                setCurrentDisplayName(updated.displayName)
+                setAccountType(updated.accountType)
+              }}
+              onOpenIdentityModal={() => setShowIdentityModal(true)}
+              onOpenPaymentQrModal={() => setShowQrModal(true)}
+              onLogout={onLogout}
+              shopPortfolioUrl={shopPortfolioUrl}
+            />
+          ) : activeConv ? (
             <>
               {/* Active Header */}
               <ChatHeader
@@ -1202,8 +1222,8 @@ export function MessagingApp({
 
       {/* Floating Action Toast Notification */}
       {inquiryActionToast && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-[#00a884] text-[#111b21] px-4 py-2.5 rounded-xl text-xs font-bold shadow-2xl flex items-center gap-2 z-50 border border-[#00a884]/40 animate-in fade-in slide-in-from-bottom-2">
-          <Check className="w-4 h-4 shrink-0" />
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-zinc-950 text-white dark:bg-white dark:text-zinc-950 px-4 py-2.5 rounded-xl text-xs font-bold shadow-2xl flex items-center gap-2 z-50 border border-zinc-800 dark:border-zinc-200 animate-in fade-in slide-in-from-bottom-2">
+          <Check className="w-4 h-4 shrink-0 text-emerald-500" />
           <span>{inquiryActionToast}</span>
         </div>
       )}

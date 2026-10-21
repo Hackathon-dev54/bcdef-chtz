@@ -101,17 +101,19 @@ export function ProfileSettingsModal({
             setBusinessHours(data.profile.businessHours || 'Sun - Fri: 10:00 AM - 7:00 PM')
             setDeliveryInfo(data.profile.deliveryInfo || 'All Nepal Courier & Inside Valley Delivery')
             setCatalogTags(data.profile.catalogTags || 'Retail, Wholesale, Custom Orders, Cash on Delivery')
-            setPrivacyMode(data.profile.privacyMode || 'pin_only')
+            setPrivacyMode(data.profile.privacyMode || 'open')
             setFriendPin(data.profile.friendPin || '')
             setInquiryLetterboxEnabled(data.profile.inquiryLetterboxEnabled !== false)
             setHubListed(data.profile.hubListed !== false)
             setHubNodeId(data.profile.hubNodeId || '')
-            setInstanceUrl(data.profile.instanceUrl || window.location.origin)
-            setFaqText(faqsToEditableText(data.profile.customFaqs || []))
+            setInstanceUrl(data.profile.instanceUrl || '')
+            if (data.profile.faqs && Array.isArray(data.profile.faqs)) {
+              setFaqText(faqsToEditableText(data.profile.faqs))
+            }
           }
         }
-      } catch (err: any) {
-        console.warn('Profile fetch warning', err?.message)
+      } catch {
+        setErrorMsg('Could not load profile. Using local defaults.')
       } finally {
         setLoading(false)
       }
@@ -119,63 +121,6 @@ export function ProfileSettingsModal({
 
     fetchProfile()
   }, [isOpen, currentUser])
-
-  const handleSyncToHub = async () => {
-    setSyncingHub(true)
-    setHubSyncSuccess('')
-    setHubSyncError('')
-    try {
-      const cleanHandle = handle.replace(/^@/, '').trim().toLowerCase()
-      const embedUrl = `${instanceUrl || window.location.origin}/letterbox?shop=${cleanHandle}`
-      const res = await fetch('/api/hub/merchants/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          handle: cleanHandle,
-          business_name: displayName.trim() || cleanHandle,
-          category: businessCategory,
-          city: businessLocation.split(',')[0].trim() || 'Kathmandu',
-          address: businessLocation,
-          bio: bio.trim(),
-          tags: catalogTags,
-          phone_whatsapp_optional: businessPhone.trim(),
-          letterbox_embed_url: embedUrl,
-        }),
-      })
-
-      const data = await res.json()
-      if (res.ok && data.success) {
-        setHubSyncSuccess('Store listed & synced successfully into the Chatze Hub Directory!')
-        setHubListed(true)
-        // Also persist hub_listed = true locally
-        await fetch('/api/profile', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            displayName: displayName.trim(),
-            accountType,
-            bio: bio.trim(),
-            businessCategory,
-            businessPhone: businessPhone.trim(),
-            businessLocation: businessLocation.trim(),
-            businessHours: businessHours.trim(),
-            deliveryInfo: deliveryInfo.trim(),
-            catalogTags: catalogTags.trim(),
-            privacyMode: accountType === 'business' ? 'pin_only' : privacyMode,
-            friendPin,
-            inquiryLetterboxEnabled,
-            hubListed: true,
-          }),
-        })
-      } else {
-        setHubSyncError(data.error || 'Failed to register with Chatze Hub')
-      }
-    } catch (err: any) {
-      setHubSyncError(err?.message || 'Network error syncing to Hub')
-    } finally {
-      setSyncingHub(false)
-    }
-  }
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -188,38 +133,39 @@ export function ProfileSettingsModal({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          displayName: displayName.trim(),
+          displayName,
+          handle,
           accountType,
-          bio: bio.trim(),
+          bio,
           businessCategory,
-          businessPhone: businessPhone.trim(),
-          businessLocation: businessLocation.trim(),
-          businessHours: businessHours.trim(),
-          deliveryInfo: deliveryInfo.trim(),
-          catalogTags: catalogTags.trim(),
-          privacyMode: accountType === 'business' ? 'pin_only' : privacyMode,
+          businessPhone,
+          businessLocation,
+          businessHours,
+          deliveryInfo,
+          catalogTags,
+          privacyMode,
           friendPin,
           inquiryLetterboxEnabled,
           hubListed,
-          customFaqs: parsedFaqs,
+          faqs: parsedFaqs,
         }),
       })
 
-      const data = await res.json()
-      if (res.ok && data.success) {
+      if (res.ok) {
         setSaveSuccess(true)
         if (onProfileUpdated) {
           onProfileUpdated({
-            displayName: data.profile.displayName,
-            accountType: data.profile.accountType,
+            displayName,
+            accountType,
           })
         }
         setTimeout(() => setSaveSuccess(false), 3000)
       } else {
-        setErrorMsg(data.error || 'Failed to save settings')
+        const err = await res.json()
+        setErrorMsg(err.error || 'Failed to save settings')
       }
-    } catch (err: any) {
-      setErrorMsg(err?.message || 'Network error while saving')
+    } catch {
+      setErrorMsg('Network error while saving settings')
     } finally {
       setSaving(false)
     }
@@ -228,16 +174,54 @@ export function ProfileSettingsModal({
   const handleRegeneratePin = async () => {
     setRegeneratingPin(true)
     try {
-      const res = await fetch('/api/profile/pin/regenerate', { method: 'POST' })
-      const data = await res.json()
-      if (res.ok && data.friendPin) {
-        setFriendPin(data.friendPin)
+      const res = await fetch('/api/auth/regenerate-pin', { method: 'POST' })
+      if (res.ok) {
+        const data = await res.json()
+        if (data.friendPin) {
+          setFriendPin(data.friendPin)
+        }
       }
-    } catch {}
-    setRegeneratingPin(false)
+    } catch {
+      setErrorMsg('Failed to change PIN')
+    } finally {
+      setRegeneratingPin(false)
+    }
   }
 
-  const inviteLink = `${instanceUrl || window.location.origin}/?add=@${handle}&pin=${friendPin}`
+  const handleSyncToHub = async () => {
+    setSyncingHub(true)
+    setHubSyncSuccess('')
+    setHubSyncError('')
+    try {
+      const res = await fetch('/api/hub/node', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          handle,
+          displayName,
+          category: businessCategory,
+          location: businessLocation,
+          phone: businessPhone,
+          tags: catalogTags,
+          isListed: hubListed,
+          letterboxActive: inquiryLetterboxEnabled,
+        }),
+      })
+      const data = await res.json()
+      if (res.ok && data.success) {
+        setHubSyncSuccess(`Successfully published to Chatze Hub (${data.nodeId || 'Active'})`)
+        if (data.nodeId) setHubNodeId(data.nodeId)
+      } else {
+        setHubSyncError(data.error || 'Hub sync failed')
+      }
+    } catch {
+      setHubSyncError('Could not reach Chatze Hub')
+    } finally {
+      setSyncingHub(false)
+    }
+  }
+
+  const inviteLink = `${instanceUrl || (typeof window !== 'undefined' ? window.location.origin : '')}/?add=@${handle}&pin=${friendPin}`
 
   const copyToClipboard = (text: string, type: 'link' | 'pin') => {
     navigator.clipboard.writeText(text).then(() => {
@@ -254,8 +238,8 @@ export function ProfileSettingsModal({
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/75 backdrop-blur-sm animate-fade-in font-sans">
-      <div className="w-full max-w-xl bg-[#111b21] border border-[#202c33] rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/70 backdrop-blur-sm animate-fade-in font-sans select-none">
+      <div className="w-full max-w-xl bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] transition-colors">
         {/* Modal Top Header & Navigation */}
         <ProfileHeader
           accountType={accountType}
@@ -265,11 +249,11 @@ export function ProfileSettingsModal({
         />
 
         {/* Tab Body */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
           {loading ? (
-            <div className="py-12 flex flex-col items-center justify-center text-xs text-[#8696a0] gap-2">
-              <div className="w-6 h-6 border-2 border-[#00a884] border-t-transparent rounded-full animate-spin"></div>
-              <span>Loading your profile settings...</span>
+            <div className="py-12 flex flex-col items-center justify-center text-xs text-zinc-400 gap-2">
+              <div className="w-6 h-6 border-2 border-zinc-900 dark:border-white border-t-transparent rounded-full animate-spin"></div>
+              <span>Loading settings...</span>
             </div>
           ) : (
             <form id="profile-form" onSubmit={handleSave} className="space-y-4">
@@ -303,7 +287,7 @@ export function ProfileSettingsModal({
                 />
               )}
 
-              {/* TAB 2: PRIVACY & ANTI-SPAM */}
+              {/* TAB 2: PRIVACY & FEDERATION */}
               {activeTab === 'privacy' && (
                 <PrivacySettingsTab
                   accountType={accountType}
@@ -322,7 +306,7 @@ export function ProfileSettingsModal({
                 />
               )}
 
-              {/* TAB 3: CHATZE HUB DIRECTORY INTEGRATION */}
+              {/* TAB 3: CHATZE HUB & LETTERBOX */}
               {activeTab === 'hub' && (
                 <HubSettingsTab
                   hubListed={hubListed}
@@ -338,21 +322,21 @@ export function ProfileSettingsModal({
                 />
               )}
 
-              {/* TAB 4: EDGE CLOUD & NODE INFO */}
+              {/* TAB 4: EDGE CLOUD & STORAGE INFO */}
               {activeTab === 'edge' && <EdgeStorageTab />}
 
               {/* Status Message */}
               {errorMsg && (
-                <div className="p-2.5 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-400 text-xs flex items-center gap-2">
+                <div className="p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-500 text-xs flex items-center gap-2">
                   <AlertCircle className="w-4 h-4 shrink-0" />
                   <span>{errorMsg}</span>
                 </div>
               )}
 
               {saveSuccess && (
-                <div className="p-2.5 bg-[#00a884]/15 border border-[#00a884]/30 rounded-xl text-[#00a884] text-xs flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 shrink-0" />
-                  <span>Settings saved successfully!</span>
+                <div className="p-3 bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl text-zinc-900 dark:text-zinc-100 text-xs flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                  <span className="font-semibold">Settings saved successfully!</span>
                 </div>
               )}
             </form>
@@ -360,15 +344,15 @@ export function ProfileSettingsModal({
         </div>
 
         {/* Modal Footer */}
-        <div className="p-3.5 bg-[#202c33]/60 border-t border-[#202c33] flex items-center justify-between shrink-0">
-          <span className="text-[11px] text-[#8696a0]">
-            Mode: <strong className="text-[#e9edef] capitalize">{accountType}</strong>
+        <div className="p-4 bg-zinc-50 dark:bg-zinc-900/60 border-t border-zinc-200 dark:border-zinc-800/80 flex items-center justify-between shrink-0">
+          <span className="text-[11px] text-zinc-500 dark:text-zinc-400">
+            Mode: <strong className="text-zinc-900 dark:text-zinc-100 capitalize">{accountType}</strong>
           </span>
           <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={onClose}
-              className="px-3.5 py-1.5 bg-[#202c33] hover:bg-[#2a3942] text-[#8696a0] hover:text-[#e9edef] rounded-xl text-xs font-semibold transition-all cursor-pointer"
+              className="px-3.5 py-2 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 rounded-xl text-xs font-semibold transition-colors cursor-pointer"
             >
               Cancel
             </button>
@@ -376,11 +360,11 @@ export function ProfileSettingsModal({
               type="submit"
               form="profile-form"
               disabled={saving || loading}
-              className="px-4 py-1.5 bg-[#00a884] hover:bg-[#02906f] text-[#111b21] rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-md shadow-[#00a884]/20 cursor-pointer disabled:opacity-50"
+              className="px-4 py-2 bg-zinc-950 text-white dark:bg-white dark:text-zinc-950 hover:bg-zinc-800 dark:hover:bg-zinc-100 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors shadow-xs cursor-pointer disabled:opacity-50"
             >
               {saving ? (
                 <>
-                  <div className="w-3.5 h-3.5 border-2 border-[#111b21] border-t-transparent rounded-full animate-spin"></div>
+                  <div className="w-3.5 h-3.5 border-2 border-zinc-400 border-t-transparent rounded-full animate-spin"></div>
                   <span>Saving...</span>
                 </>
               ) : (
