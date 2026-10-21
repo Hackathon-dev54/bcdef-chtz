@@ -8,7 +8,6 @@ import {
   Copy,
   CheckCircle2,
   AlertCircle,
-  Download,
 } from 'lucide-react'
 import { getHubStoreUrl } from '../../lib/hubConfig'
 
@@ -184,28 +183,6 @@ export const HubSettingsTab: React.FC<HubSettingsTabProps> = ({
           <span>Cryptographic Key:</span>
           <span className="font-mono text-zinc-600 dark:text-zinc-400">ECDSA P-256 (Ed25519 compatible)</span>
         </div>
-      </div>
-
-      {/* Standalone Chatze Hub Codebase Download */}
-      <div className="p-4 bg-zinc-50 dark:bg-zinc-900/60 border border-zinc-200 dark:border-zinc-800 rounded-2xl flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-zinc-900 dark:text-zinc-100 font-bold text-xs flex items-center gap-1.5">
-            <Store className="w-3.5 h-3.5" />
-            <span>Chatze Hub Project Codebase</span>
-          </p>
-          <p className="text-zinc-500 dark:text-zinc-400 text-[10px] mt-0.5 truncate">
-            Self-contained Cloudflare D1 + Hono + Vite gateway ready for deployment
-          </p>
-        </div>
-        <a
-          href="/chatze-hub.zip"
-          download="chatze-hub.zip"
-          className="px-3.5 py-2 bg-zinc-950 text-white dark:bg-white dark:text-zinc-950 hover:bg-zinc-800 dark:hover:bg-zinc-100 font-bold text-xs rounded-xl flex items-center gap-1.5 shrink-0 transition-colors shadow-xs"
-          title="Download chatze-hub.zip"
-        >
-          <Download className="w-3.5 h-3.5" />
-          <span>Download .zip</span>
-        </a>
       </div>
     </div>
   )
