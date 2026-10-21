@@ -1,37 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react'
-import {
-  Send,
-  Search,
-  MessageSquare,
-  ShieldCheck,
-  CheckCheck,
-  LogOut,
-  Bell,
-  Sparkles,
-  UserPlus,
-  ArrowDown,
-  ArrowLeft,
-  QrCode,
-  X,
-  Clock,
-  Globe,
-  Share2,
-  Copy,
-  AlertCircle,
-  Image as ImageIcon,
-  Download,
-  Maximize2,
-  Loader2,
-  Settings,
-  Store,
-  ExternalLink,
-  Check,
-  Phone,
-  Shield,
-  UserCheck,
-  ArrowRight,
-} from 'lucide-react'
-import { CHATZE_HUB_URL, getHubStoreUrl } from '../lib/hubConfig'
+import { MessageSquare, UserPlus, Check } from 'lucide-react'
 import {
   getLocalMessages,
   saveLocalMessages,
@@ -43,164 +11,33 @@ import {
   getLocalMeta,
   setLocalMeta,
 } from '../lib/db'
-import { PWAInstallButton } from './PWAInstallButton'
-import { NotificationToggleButton } from './NotificationToggleButton'
 import { NotificationPermissionBanner } from './NotificationPermissionBanner'
 import { OfflineIndicator } from './OfflineIndicator'
 import { ProfileSettingsModal } from './ProfileSettingsModal'
+import {
+  type Conversation,
+  type ChatMessage,
+  type Friendship,
+  type InboxFilter,
+  getOptimizedImageUrl,
+  parseMessageContent,
+  compressImageToWebP,
+  SidebarHeader,
+  IncomingRequestsBanner,
+  InquiriesFeed,
+  ConversationList,
+  ChatHeader,
+  ChatStreamView,
+  ChatComposer,
+  ConnectContactModal,
+  IdentityAddressModal,
+  PaymentQrModal,
+  ImageSendModal,
+  ImageLightboxModal,
+} from './messaging'
 
-
-// ============================================================================
-// wsrv.nl Global Image Cache & Resizing Proxy Integration
-// Free, open-source image cache and resizing proxy: https://wsrv.nl
-// ============================================================================
-export function getOptimizedImageUrl(rawUrl: string, width = 800): string {
-  if (!rawUrl) return ''
-  // If it's a local data URI (pre-upload preview), return directly
-  if (rawUrl.startsWith('data:image')) return rawUrl
-  // If already routed through wsrv.nl, return as is
-  if (rawUrl.includes('wsrv.nl')) return rawUrl
-
-  let fullUrl = rawUrl
-  if (fullUrl.startsWith('/')) {
-    if (typeof window !== 'undefined') {
-      fullUrl = window.location.origin + fullUrl
-    }
-  } else if (fullUrl.startsWith('//')) {
-    fullUrl = 'https:' + fullUrl
-  }
-
-  // Bypass wsrv.nl for local development hosts that external proxy cannot access
-  if (fullUrl.includes('localhost') || fullUrl.includes('127.0.0.1')) {
-    return fullUrl
-  }
-
-  // Route through wsrv.nl with WebP conversion, dimension resize, auto-EXIF rotation (&af=true), and progressive display (&il=true)
-  return `https://wsrv.nl/?url=${encodeURIComponent(fullUrl)}&w=${width}&output=webp&q=80&af=true&il=true`
-}
-
-interface ParsedMessage {
-  isImage: boolean
-  imageUrl?: string
-  caption?: string
-  text?: string
-}
-
-export function parseMessageContent(body: string): ParsedMessage {
-  if (!body) return { isImage: false, text: '' }
-
-  // Pattern 1: [img:URL] or [img:URL|caption]
-  const imgTagMatch = body.match(/^\[img:(https?:\/\/[^\s|\]]+)(?:\|(.*))?\]$/i)
-  if (imgTagMatch) {
-    return {
-      isImage: true,
-      imageUrl: imgTagMatch[1],
-      caption: imgTagMatch[2] ? imgTagMatch[2].trim() : undefined,
-    }
-  }
-
-  // Pattern 2: Direct public image URL or media endpoint
-  const isDirectImage =
-    /^https?:\/\/[^\s]+\.(jpg|jpeg|png|webp|gif|svg)(\?[^\s]*)?$/i.test(body.trim()) ||
-    /^https?:\/\/[^\s]+\/api\/media\/med_[a-z0-9]+/i.test(body.trim())
-
-  if (isDirectImage) {
-    return {
-      isImage: true,
-      imageUrl: body.trim(),
-    }
-  }
-
-  return { isImage: false, text: body }
-}
-
-// Client-side HTML5 canvas compression before sending to Cloudflare (Saves 90-95% D1 DB storage!)
-export async function compressImageToWebP(
-  file: File,
-  maxDim = 850,
-  quality = 0.72
-): Promise<{ dataUrl: string; sizeKb: number; originalKb: number }> {
-  const originalKb = Math.round(file.size / 1024)
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = (e) => {
-      const img = new window.Image()
-      img.onload = () => {
-        let width = img.width
-        let height = img.height
-        if (width > maxDim || height > maxDim) {
-          if (width > height) {
-            height = Math.round((height * maxDim) / width)
-            width = maxDim
-          } else {
-            width = Math.round((width * maxDim) / height)
-            height = maxDim
-          }
-        }
-        const canvas = document.createElement('canvas')
-        canvas.width = width
-        canvas.height = height
-        const ctx = canvas.getContext('2d')
-        if (!ctx) return reject(new Error('Canvas context not available'))
-        ctx.drawImage(img, 0, 0, width, height)
-
-        let dataUrl = canvas.toDataURL('image/webp', quality)
-        let sizeKb = Math.round((dataUrl.length * (3 / 4)) / 1024)
-
-        // Adaptive second pass: If photo is still > 140KB (heavy detail), apply slightly more compression to protect D1
-        if (sizeKb > 140) {
-          dataUrl = canvas.toDataURL('image/webp', 0.60)
-          sizeKb = Math.round((dataUrl.length * (3 / 4)) / 1024)
-        }
-
-        resolve({ dataUrl, sizeKb, originalKb })
-      }
-      img.onerror = reject
-      img.src = e.target?.result as string
-    }
-    reader.onerror = reject
-    reader.readAsDataURL(file)
-  })
-}
-
-interface Conversation {
-  id: string
-  otherUser: { id?: string; username: string; displayName: string }
-  status?: string // 'active' | 'pending' | 'archived'
-  remoteInstanceUrl?: string | null
-  lastMessage?: { content: string; createdAt: number } | null
-  unreadCount?: number
-}
-
-interface ChatMessage {
-  id: string
-  conversationId: string
-  senderId: string
-  senderHandle?: string
-  recipientHandle?: string
-  body: string
-  createdAt: string
-  readAt?: string | null
-  status?: 'sending' | 'sent' | 'delivered'
-}
-
-interface Friendship {
-  id: string
-  local_user_id: string
-  remote_handle: string
-  remote_instance_url: string
-  status: string // 'pending' | 'active' | 'rejected'
-  direction: 'incoming' | 'outgoing'
-  created_at: number
-}
-
-const UNIVERSAL_QUICK_REPLIES = [
-  { label: '👋 Hey there!', text: '👋 Hey! How are you doing?' },
-  { label: '📍 Share Location', text: '📍 Meeting point / current location shared.' },
-  { label: '✅ Sounds good!', text: '✅ Sounds great, let’s do that!' },
-  { label: '📞 Call me later', text: '📞 A bit busy right now, call you in a bit.' },
-  { label: '💳 Payment QR', text: '💳 Payment QR: eSewa, Khalti, or mobile banking accepted.' },
-]
+// Re-export utilities so external code importing from MessagingApp continues to work seamlessly
+export { getOptimizedImageUrl, parseMessageContent, compressImageToWebP }
 
 export function MessagingApp({
   currentUser,
@@ -216,7 +53,7 @@ export function MessagingApp({
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [inputText, setInputText] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
-  const [inboxFilter, setInboxFilter] = useState<'all' | 'unread' | 'pending' | 'friends' | 'letterbox' | 'inquiries'>('all')
+  const [inboxFilter, setInboxFilter] = useState<InboxFilter>('all')
   const [accountType, setAccountType] = useState<'personal' | 'business'>('personal')
   const [inquiries, setInquiries] = useState<any[]>([])
   const [pendingInquiryCount, setPendingInquiryCount] = useState<number>(0)
@@ -249,7 +86,12 @@ export function MessagingApp({
   const [showQrModal, setShowQrModal] = useState(false)
 
   // Media attachments & wsrv.nl proxy state
-  const [selectedImageFile, setSelectedImageFile] = useState<{ dataUrl: string; caption: string; sizeKb: number; originalKb?: number } | null>(null)
+  const [selectedImageFile, setSelectedImageFile] = useState<{
+    dataUrl: string
+    caption: string
+    sizeKb: number
+    originalKb?: number
+  } | null>(null)
   const [isUploadingImage, setIsUploadingImage] = useState(false)
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -392,15 +234,12 @@ export function MessagingApp({
   // Instant 0ms Chat Switch: Load messages from phone/browser IndexedDB first!
   const loadMessages = async (convId: string) => {
     try {
-      // 1. Instant local-device restore (0ms, 0 Cloudflare Worker invocations, 0 D1 reads)
       const localMsgs = await getLocalMessages(convId)
       if (localMsgs.length > 0) {
         setMessages(localMsgs)
-        // If we already have message history, don't burn D1 reads. runSync() handles new incoming deltas!
         return
       }
 
-      // 2. Only if local DB has never seen this conversation, perform one-time initial load
       const res = await fetch(`/api/messaging?conversationId=${encodeURIComponent(convId)}`, {
         headers: getAuthHeaders(),
       })
@@ -434,9 +273,7 @@ export function MessagingApp({
     }
   }, [activeConv?.id])
 
-  // Single-Endpoint Delta Sync:
-  // Runs ONLY on initial connect, stream reconnect, or when tab becomes visible.
-  // ZERO interval loops while sitting idle!
+  // Single-Endpoint Delta Sync
   const runSync = async () => {
     try {
       const convId = activeConvRef.current?.id || ''
@@ -496,10 +333,7 @@ export function MessagingApp({
     setHasNewUnreadWhileScrolled(false)
   }
 
-  // ==========================================================================
-  // TAB-VISIBILITY AWARE SSE STREAM (Zero Idle CPU, Suspends When Tab Hidden)
-  // Reconnects only when visible or on message trigger.
-  // ==========================================================================
+  // Tab-Visibility Aware SSE Stream
   useEffect(() => {
     let evtSource: EventSource | null = null
     let hiddenTimeout: any = null
@@ -525,7 +359,6 @@ export function MessagingApp({
         setStreamConnected(true)
       })
 
-      // Inbound or outbound message: Save to local IndexedDB and update UI (ZERO GET requests!)
       evtSource.addEventListener('new_message', (e) => {
         try {
           const incoming: ChatMessage = JSON.parse(e.data)
@@ -536,7 +369,6 @@ export function MessagingApp({
           const senderH = (incoming.senderHandle || incoming.senderId || '').toLowerCase().replace(/^@/, '')
           const recipH = (incoming.recipientHandle || '').toLowerCase().replace(/^@/, '')
 
-          // Match message to current open conversation from either sender or recipient side:
           const isCurrentChat = Boolean(
             currentActive &&
               (incoming.conversationId === currentActive.id ||
@@ -547,14 +379,11 @@ export function MessagingApp({
                 incoming.conversationId === 'conv_' + [myHandle, otherHandle].sort().join('_'))
           )
 
-          // Normalize conversation ID to match the active or other user's conversation format
           const targetConvId = currentActive && isCurrentChat ? currentActive.id : ('conv_' + (senderH === myHandle ? recipH : senderH))
           const normalizedIncoming = { ...incoming, conversationId: targetConvId }
 
-          // Persist to local device IndexedDB immediately with matching conversation ID
           saveLocalMessage(normalizedIncoming).catch(() => {})
 
-          // 1. If currently in this conversation, append message to view in 0ms!
           if (isCurrentChat) {
             setMessages((prev) => {
               if (prev.some((m) => m.id === incoming.id || (m.body === incoming.body && m.status === 'sending'))) {
@@ -576,7 +405,6 @@ export function MessagingApp({
             }
           }
 
-          // 2. Update conversation snippet in memory and IndexedDB
           setConversations((prev) => {
             const index = prev.findIndex((c) => {
               const cHandle = (c.otherUser.username || '').toLowerCase().replace(/^@/, '')
@@ -603,7 +431,6 @@ export function MessagingApp({
               saveLocalConversations(newConvs).catch(() => {})
               return newConvs
             } else if (senderH && senderH !== myHandle) {
-              // Automatically add new incoming contact conversation to the sidebar!
               const newConv: Conversation = {
                 id: incoming.conversationId || 'conv_' + senderH,
                 otherUser: {
@@ -626,7 +453,6 @@ export function MessagingApp({
         }
       })
 
-      // Inbound friend request: Save to local IndexedDB and update UI
       evtSource.addEventListener('incoming_friend_request', (e) => {
         try {
           const payload = JSON.parse(e.data)
@@ -667,7 +493,6 @@ export function MessagingApp({
         }
       })
 
-      // Friend request accepted: Update state and IndexedDB
       evtSource.addEventListener('friend_accepted', (e) => {
         try {
           const payload = JSON.parse(e.data)
@@ -723,12 +548,8 @@ export function MessagingApp({
 
     let reconnectTimeout: any = null
 
-    // Connect SSE immediately
     connectSSE()
 
-    // Smart Tab-Visibility Management:
-    // If user leaves the tab or locks phone for > 35s, suspend stream to avoid burning Worker resources.
-    // Instant wake-up with delta sync when returning!
     const handleVisibilityChange = () => {
       if (document.hidden) {
         hiddenTimeout = setTimeout(() => {
@@ -753,7 +574,6 @@ export function MessagingApp({
       }
     }
 
-    // Mobile touch interaction: recover stream immediately if phone cellular radio dropped TCP
     const handleTouchRecovery = () => {
       if (!evtSource) {
         connectSSE()
@@ -764,7 +584,6 @@ export function MessagingApp({
     window.addEventListener('focus', runSync)
     window.addEventListener('touchstart', handleTouchRecovery, { passive: true })
 
-    // BroadcastChannel for 0ms cross-tab instant local sync
     let bc: BroadcastChannel | null = null
     try {
       if (typeof BroadcastChannel !== 'undefined') {
@@ -802,7 +621,6 @@ export function MessagingApp({
 
     fetchInquiries()
 
-    // Check URL params for QR or direct link handshake: ?add=@user&pin=NP-XXXX
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search)
       const addParam = params.get('add')
@@ -818,7 +636,7 @@ export function MessagingApp({
     }
   }, [])
 
-  // Send Contact Connection Request (Single POST request)
+  // Send Contact Connection Request
   const handleSendFriendRequest = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!friendHandle.trim() || !friendDomain.trim()) return
@@ -883,10 +701,9 @@ export function MessagingApp({
     }
   }
 
-  // Accept Inbound Request (Single POST request)
+  // Accept Inbound Request
   const handleAcceptFriendRequest = async (remoteHandle: string, remoteInstanceUrl: string) => {
     try {
-      // Optimistic update in memory and IndexedDB
       setFriendships((prev) => {
         const updated = prev.map((f) => (f.remote_handle === remoteHandle ? { ...f, status: 'active' } : f))
         saveLocalFriendships(updated).catch(() => {})
@@ -916,7 +733,7 @@ export function MessagingApp({
     }
   }
 
-  // Decline Inbound Request (With optional Root Domain Blacklist)
+  // Decline Inbound Request
   const handleRejectFriendRequest = async (remoteHandle: string, blockDomain = false, remoteInstanceUrl = '') => {
     try {
       setFriendships((prev) => {
@@ -995,11 +812,6 @@ export function MessagingApp({
     } catch {}
   }
 
-  // Business owner manually adds the inquirer as a private friend directly
-  const handleAddFriendFromInquiry = async (inquiryId: string) => {
-    return handleReplyInquiry(inquiryId, true)
-  }
-
   const shopPortfolioUrl = typeof window !== 'undefined' ? `${window.location.origin}/shop` : ''
 
   const handleCopyShopUrl = () => {
@@ -1028,7 +840,7 @@ export function MessagingApp({
     }
   }
 
-  // Send Message (0ms Optimistic + Single POST request, ZERO GET requests!)
+  // Send Message
   const handleSendMessage = async (e?: React.FormEvent, customText?: string) => {
     if (e) e.preventDefault()
     const textToSend = customText || inputText.trim()
@@ -1049,7 +861,6 @@ export function MessagingApp({
     if (!customText) setInputText('')
     scrollToBottom('instant')
 
-    // Optimistically update conversation snippet in sidebar in 0ms!
     setConversations((prev) => {
       const index = prev.findIndex((c) => c.id === activeConv.id)
       if (index !== -1) {
@@ -1081,7 +892,6 @@ export function MessagingApp({
         setMessages((prev) =>
           prev.map((m) => (m.id === tempId ? { ...data.message, status: 'sent' } : m))
         )
-        // Cache to device IndexedDB
         saveLocalMessage({ ...data.message, status: 'sent' }).catch(() => {})
       }
     } catch (err) {
@@ -1107,1225 +917,188 @@ export function MessagingApp({
     })
   }, [conversations, searchQuery, inboxFilter])
 
+  const hasLetterboxActivity = Boolean(
+    conversations.some((c) => c.status === 'letterbox') ||
+      inquiries.some((i) => i.status === 'pending')
+  )
+
   return (
     <div className="flex flex-col h-screen w-full bg-[#0b141a] text-[#e9edef] overflow-hidden font-sans select-none">
       <NotificationPermissionBanner userHandle={currentUser.handle} />
       <div className="flex flex-1 w-full overflow-hidden">
-        {/* 1. Sidebar: Full width on mobile when no active chat, 80-96 width on desktop */}
+        {/* 1. Sidebar */}
         <aside
           className={`${
             activeConv ? 'hidden md:flex' : 'flex'
           } w-full md:w-80 lg:w-96 border-r border-[#202c33] bg-[#111b21] flex-col shrink-0 h-full`}
         >
-        {/* Header Bar */}
-        <div className="p-3.5 border-b border-[#202c33] space-y-3 bg-[#202c33]/40">
-          <div className="flex items-center justify-between">
-            <div
-              onClick={() => setShowProfileModal(true)}
-              title="Click to customize Profile & Anti-Spam Settings"
-              className="flex items-center gap-2.5 cursor-pointer hover:opacity-85 transition-opacity"
-            >
-              <div className="w-10 h-10 rounded-full bg-[#00a884]/20 border border-[#00a884]/30 flex items-center justify-center font-bold text-xs text-[#00a884] shrink-0">
-                {currentDisplayName.slice(0, 2).toUpperCase()}
-              </div>
-              <div className="min-w-0">
-                <h1 className="text-sm font-semibold text-[#e9edef] leading-tight truncate max-w-[130px] sm:max-w-[160px]">
-                  {currentDisplayName}
-                </h1>
-                <div className="flex items-center gap-1.5 text-[11px] text-[#8696a0]">
-                  <span className="w-2 h-2 rounded-full bg-[#00a884] animate-pulse"></span>
-                  <span className="truncate">@{currentUser.handle}</span>
-                </div>
-              </div>
-            </div>
+          {/* Header Bar */}
+          <SidebarHeader
+            currentUser={currentUser}
+            currentDisplayName={currentDisplayName}
+            accountType={accountType}
+            shopPortfolioUrl={shopPortfolioUrl}
+            copiedShopLink={copiedShopLink}
+            handleCopyShopUrl={handleCopyShopUrl}
+            handleShareShopUrl={handleShareShopUrl}
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
+            inboxFilter={inboxFilter}
+            setInboxFilter={setInboxFilter}
+            pendingInquiryCount={pendingInquiryCount}
+            inquiriesCount={inquiries.length}
+            hasLetterboxActivity={hasLetterboxActivity}
+            onOpenProfile={() => setShowProfileModal(true)}
+            onOpenIdentity={() => setShowIdentityModal(true)}
+            onOpenQr={() => setShowQrModal(true)}
+            onOpenConnectContact={() => setShowAddFriendModal(true)}
+            onLogout={onLogout}
+          />
 
-            <div className="flex items-center gap-1">
-              <PWAInstallButton className="hidden sm:inline-flex" />
-              <NotificationToggleButton userHandle={currentUser.handle} />
-              <button
-                onClick={() => setShowProfileModal(true)}
-                title="Profile & Anti-Spam Settings"
-                className="p-2 rounded-full text-[#8696a0] hover:text-[#00a884] hover:bg-[#202c33] transition-colors cursor-pointer"
-              >
-                <Settings className="w-4 h-4" />
-              </button>
-              <a
-                href={CHATZE_HUB_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                title="Browse Chatze Hub Directory (Discover Sovereign Stores)"
-                className="p-2 rounded-full text-[#8696a0] hover:text-[#00a884] hover:bg-[#202c33] transition-colors"
-              >
-                <Store className="w-4 h-4" />
-              </a>
-              <button
-                onClick={() => setShowIdentityModal(true)}
-                title="My Instance Address / Share"
-                className="p-2 rounded-full text-[#8696a0] hover:text-[#00a884] hover:bg-[#202c33] transition-colors"
-              >
-                <Share2 className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => setShowQrModal(true)}
-                title="Payment QR"
-                className="p-2 rounded-full text-[#8696a0] hover:text-[#00a884] hover:bg-[#202c33] transition-colors"
-              >
-                <QrCode className="w-4 h-4" />
-              </button>
-              <button
-                onClick={onLogout}
-                title="Lock / Logout"
-                className="p-2 rounded-full text-[#8696a0] hover:text-rose-400 hover:bg-[#202c33] transition-colors"
-              >
-                <LogOut className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
+          {/* Incoming Connection Requests Banner */}
+          <IncomingRequestsBanner
+            incomingRequests={incomingRequests}
+            handleAcceptFriendRequest={handleAcceptFriendRequest}
+            handleRejectFriendRequest={handleRejectFriendRequest}
+          />
 
-          {/* Dedicated Business Letterbox & Portfolio Share Card */}
-          {accountType === 'business' && (
-            <div className="p-3 bg-gradient-to-br from-purple-950/40 via-[#111b21] to-[#00a884]/10 border border-purple-500/30 rounded-2xl space-y-2 shadow-sm">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5">
-                  <Store className="w-3.5 h-3.5 text-purple-400" />
-                  <span className="font-bold text-xs text-[#e9edef]">Public Letterbox & Portfolio</span>
-                </div>
-                <span className="text-[10px] bg-purple-500/20 text-purple-300 font-bold px-2 py-0.5 rounded-full border border-purple-500/30">
-                  Share Hub
-                </span>
-              </div>
-
-              <div className="flex items-center gap-1.5 bg-[#0b141a] p-1.5 rounded-xl border border-[#202c33]">
-                <Globe className="w-3.5 h-3.5 text-[#8696a0] shrink-0 ml-1" />
-                <span className="text-[11px] font-mono text-[#8696a0] truncate flex-1 select-all">
-                  {shopPortfolioUrl ? shopPortfolioUrl.replace(/^https?:\/\//, '') : '/shop'}
-                </span>
-                <button
-                  type="button"
-                  onClick={handleCopyShopUrl}
-                  title="Copy Customer Share Link"
-                  className="px-2 py-1 bg-[#202c33] hover:bg-[#2a3942] text-[#e9edef] rounded-lg text-[11px] font-semibold flex items-center gap-1 transition-colors shrink-0 cursor-pointer"
-                >
-                  {copiedShopLink ? <Check className="w-3 h-3 text-[#00a884]" /> : <Copy className="w-3 h-3 text-[#8696a0]" />}
-                  <span>{copiedShopLink ? 'Copied' : 'Copy'}</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={handleShareShopUrl}
-                  title="Share link"
-                  className="p-1 text-[#8696a0] hover:text-[#00a884] hover:bg-[#202c33] rounded-lg transition-colors cursor-pointer"
-                >
-                  <Share2 className="w-3.5 h-3.5" />
-                </button>
-                <a
-                  href="/shop"
-                  target="_blank"
-                  rel="noreferrer"
-                  title="Open Customer Landing Page"
-                  className="p-1 text-[#8696a0] hover:text-[#00a884] hover:bg-[#202c33] rounded-lg transition-colors cursor-pointer"
-                >
-                  <ExternalLink className="w-3.5 h-3.5" />
-                </a>
-              </div>
-
-              <div className="flex items-center justify-between text-[10px] text-[#8696a0]">
-                <span className="flex items-center gap-1 text-amber-400">
-                  <Shield className="w-3 h-3" /> Friend Requests: Private Only
-                </span>
-                <button
-                  onClick={() => setInboxFilter('inquiries')}
-                  className="text-purple-400 font-semibold hover:underline cursor-pointer"
-                >
-                  Letterbox ({inquiries.length})
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Connect Contact Button */}
-          <button
-            onClick={() => setShowAddFriendModal(true)}
-            className="w-full py-2.5 px-3 bg-[#00a884] hover:bg-[#02906f] text-[#111b21] rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-md shadow-[#00a884]/20 cursor-pointer"
-          >
-            <UserPlus className="w-4 h-4" /> + Connect Contact (Subdomain / Domain)
-          </button>
-
-          {/* Search Input */}
-          <div className="relative">
-            <Search className="w-4 h-4 absolute left-3 top-2.5 text-[#8696a0]" />
-            <input
-              type="text"
-              placeholder="Search or start new chat..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-3 py-2 bg-[#202c33] border border-[#222e35] rounded-xl text-xs text-[#e9edef] placeholder-[#8696a0] focus:outline-none focus:border-[#00a884] transition-all"
-            />
-          </div>
-
-          {/* Chat Queue Filter Pills */}
-          <div className="flex items-center gap-1 bg-[#0b141a]/60 p-1 rounded-xl border border-[#202c33] text-[11px]">
-            <button
-              onClick={() => setInboxFilter('all')}
-              className={`flex-1 py-1 rounded-lg font-medium transition-all ${
-                inboxFilter === 'all' ? 'bg-[#202c33] text-[#e9edef]' : 'text-[#8696a0] hover:text-[#e9edef]'
-              }`}
-            >
-              All
-            </button>
-            <button
-              onClick={() => setInboxFilter('friends')}
-              className={`flex-1 py-1 rounded-lg font-medium transition-all ${
-                inboxFilter === 'friends' ? 'bg-[#202c33] text-[#00a884]' : 'text-[#8696a0] hover:text-[#e9edef]'
-              }`}
-            >
-              Friends
-            </button>
-            <button
-              onClick={() => setInboxFilter('letterbox')}
-              className={`flex-1 py-1 rounded-lg font-medium transition-all flex items-center justify-center gap-1 ${
-                inboxFilter === 'inquiries' || inboxFilter === 'letterbox'
-                  ? 'bg-[#202c33] text-purple-400 font-bold'
-                  : 'text-[#8696a0] hover:text-[#e9edef]'
-              }`}
-            >
-              <span>Letterbox</span>
-              {accountType === 'business' && pendingInquiryCount > 0 ? (
-                <span className="w-4 h-4 rounded-full bg-purple-500 text-white font-bold text-[9px] flex items-center justify-center">
-                  {pendingInquiryCount}
-                </span>
-              ) : (
-                (conversations.some((c) => c.status === 'letterbox') || inquiries.some((i) => i.status === 'pending')) && (
-                  <span className="w-2 h-2 rounded-full bg-purple-400"></span>
-                )
-              )}
-            </button>
-            <button
-              onClick={() => setInboxFilter('unread')}
-              className={`flex-1 py-1 rounded-lg font-medium transition-all ${
-                inboxFilter === 'unread' ? 'bg-[#202c33] text-[#00a884]' : 'text-[#8696a0] hover:text-[#e9edef]'
-              }`}
-            >
-              Unread
-            </button>
-          </div>
-        </div>
-
-        {/* Incoming Connection Requests Banner */}
-        {incomingRequests.length > 0 && (
-          <div className="p-3 bg-amber-500/10 border-b border-amber-500/20 space-y-2">
-            <div className="flex items-center justify-between text-xs font-semibold text-amber-400">
-              <span className="flex items-center gap-1.5">
-                <Bell className="w-3.5 h-3.5" /> Incoming Connection Requests ({incomingRequests.length})
-              </span>
-            </div>
-            {incomingRequests.map((req) => (
-              <div key={req.id} className="p-2.5 bg-[#111b21] border border-[#202c33] rounded-xl space-y-2 text-xs">
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-[#e9edef]">@{req.remote_handle}</span>
-                  <span className="text-[10px] text-[#8696a0] truncate max-w-[130px]">
-                    {req.remote_instance_url.replace(/^https?:\/\//, '')}
-                  </span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <button
-                    onClick={() => handleAcceptFriendRequest(req.remote_handle, req.remote_instance_url)}
-                    className="flex-1 py-1.5 bg-[#00a884] hover:bg-[#02906f] text-[#111b21] font-bold rounded-lg text-xs transition-all cursor-pointer"
-                  >
-                    Accept
-                  </button>
-                  <button
-                    onClick={() => handleRejectFriendRequest(req.remote_handle, false)}
-                    className="px-2.5 py-1.5 bg-[#202c33] hover:bg-[#222e35] text-[#8696a0] rounded-lg text-xs transition-all cursor-pointer"
-                  >
-                    Decline
-                  </button>
-                  <button
-                    onClick={() => handleRejectFriendRequest(req.remote_handle, true, req.remote_instance_url)}
-                    title="Block this root domain"
-                    className="px-2 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 rounded-lg text-xs transition-all cursor-pointer"
-                  >
-                    Block
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Chats or Inquiries Feed */}
-        <div className="flex-1 overflow-y-auto divide-y divide-[#202c33]/40">
-          {inboxFilter === 'letterbox' || inboxFilter === 'inquiries' ? (
-            <div className="p-3 space-y-3">
-              {accountType === 'personal' ? (
-                /* CUSTOMER / PRIVATE ACCOUNT LETTERBOX */
-                <div className="space-y-3">
-                  <div className="p-3 bg-gradient-to-r from-purple-950/40 via-[#111b21] to-[#00a884]/10 border border-purple-500/30 rounded-xl space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1.5">
-                        <Store className="w-3.5 h-3.5 text-purple-400" />
-                        <span className="font-bold text-xs text-[#e9edef]">My Customer Letterbox</span>
-                      </div>
-                      <a
-                        href={CHATZE_HUB_URL}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-[10px] bg-[#00a884]/20 text-[#00a884] hover:bg-[#00a884]/30 px-2 py-0.5 rounded font-bold border border-[#00a884]/30 flex items-center gap-1 cursor-pointer"
-                      >
-                        <span>+ Explore Hub</span>
-                        <ExternalLink className="w-2.5 h-2.5" />
-                      </a>
-                    </div>
-                    <p className="text-[11px] text-[#8696a0]">
-                      Track status of inquiries you dropped to shops. Once accepted, chat unlocks in real-time.
-                    </p>
-                  </div>
-
-                  {/* 1. Pending & Recent Notes sent by this customer */}
-                  {inquiries.length > 0 && (
-                    <div className="space-y-2">
-                      <span className="text-[10px] font-bold text-[#8696a0] uppercase tracking-wider block px-1">
-                        Sent Inquiries ({inquiries.length})
-                      </span>
-                      {inquiries.map((inq) => {
-                        const matchingConv = conversations.find(
-                          (c) => c.status === 'letterbox'
-                        )
-                        return (
-                          <div key={inq.id} className="p-3 bg-[#111b21] border border-[#202c33] rounded-xl space-y-2 text-xs">
-                            <div className="flex items-center justify-between">
-                              <span className="font-bold text-[#e9edef]">{inq.category || 'Customer Note'}</span>
-                              <span
-                                className={`px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider ${
-                                  inq.status === 'accepted'
-                                    ? 'bg-[#00a884]/20 text-[#00a884]'
-                                    : inq.status === 'dismissed'
-                                    ? 'bg-[#202c33] text-[#8696a0]'
-                                    : 'bg-amber-500/20 text-amber-400'
-                                }`}
-                              >
-                                {inq.status === 'accepted' ? 'Accepted' : inq.status === 'dismissed' ? 'Dismissed' : 'Pending Review'}
-                              </span>
-                            </div>
-
-                            <p className="p-2.5 bg-[#0b141a] rounded-lg text-[#e9edef] text-xs border border-[#202c33]/70 leading-relaxed font-sans">
-                              "{inq.content}"
-                            </p>
-
-                            <div className="flex items-center justify-between text-[10px] text-[#8696a0]">
-                              <span>{new Date(inq.created_at).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}</span>
-                              {inq.status === 'accepted' && (
-                                <button
-                                  onClick={() => {
-                                    const conv = matchingConv || conversations.find((c) => c.status === 'letterbox')
-                                    if (conv) setActiveConv(conv)
-                                  }}
-                                  className="text-[#00a884] font-bold hover:underline flex items-center gap-1 cursor-pointer"
-                                >
-                                  <span>Open Chat</span>
-                                  <ArrowRight className="w-3 h-3" />
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  )}
-
-                  {/* 2. Accepted 2-way Customer Chats for this personal account */}
-                  {filteredConversations.length > 0 && (
-                    <div className="space-y-2 pt-2 border-t border-[#202c33]/60">
-                      <span className="text-[10px] font-bold text-[#8696a0] uppercase tracking-wider block px-1">
-                        Active Customer Chats ({filteredConversations.length})
-                      </span>
-                      {filteredConversations.map((conv) => {
-                        const isActive = activeConv?.id === conv.id
-                        return (
-                          <div
-                            key={conv.id}
-                            onClick={() => setActiveConv(conv)}
-                            className={`p-3 rounded-xl border border-[#202c33] flex items-start gap-3 cursor-pointer transition-colors ${
-                              isActive ? 'bg-[#2a3942]' : 'bg-[#111b21] hover:bg-[#202c33]/50'
-                            }`}
-                          >
-                            <div className="w-10 h-10 rounded-full bg-purple-500/20 border border-purple-500/30 flex items-center justify-center font-bold text-xs text-purple-300 shrink-0">
-                              {conv.otherUser.displayName.slice(0, 2).toUpperCase()}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center justify-between">
-                                <span className="text-xs font-semibold text-[#e9edef] truncate">{conv.otherUser.displayName}</span>
-                                {conv.lastMessage && (
-                                  <span className="text-[10px] text-[#8696a0]">
-                                    {new Date(conv.lastMessage.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                  </span>
-                                )}
-                              </div>
-                              <p className="text-[11px] text-[#8696a0] truncate mt-0.5">{conv.lastMessage?.content || 'Chat open'}</p>
-                              <span className="inline-flex mt-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-purple-500/15 text-purple-300 border border-purple-500/30 items-center gap-1">
-                                <Store className="w-2.5 h-2.5" /> Customer Letterbox
-                              </span>
-                            </div>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  )}
-
-                  {inquiries.length === 0 && filteredConversations.length === 0 && (
-                    <div className="p-8 text-center text-xs text-[#8696a0] space-y-3 bg-[#111b21] rounded-2xl border border-[#202c33]">
-                      <Store className="w-8 h-8 mx-auto text-purple-400/60" />
-                      <p className="font-semibold text-[#e9edef]">No Letterbox Notes Yet</p>
-                      <p className="text-[11px] text-[#8696a0] max-w-xs mx-auto">
-                        You haven't dropped any notes to shops. Explore verified stores on Chatze Hub to inquire about products and services!
-                      </p>
-                      <a
-                        href={CHATZE_HUB_URL}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-1.5 px-3 py-2 bg-[#00a884] text-[#111b21] rounded-xl font-bold text-xs hover:bg-[#02906f] transition-all cursor-pointer shadow-md"
-                      >
-                        <span>Explore Stores on Chatze Hub</span>
-                        <ArrowRight className="w-3.5 h-3.5" />
-                      </a>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                /* BUSINESS ACCOUNT LETTERBOX */
-                <div className="space-y-3">
-                  {/* Chatze Hub Integration Status Bar */}
-                  <div className="p-3 bg-[#111b21] border border-[#202c33] rounded-xl flex items-center justify-between gap-2 text-xs">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <Store className="w-4 h-4 text-[#00a884] shrink-0" />
-                      <div className="min-w-0">
-                        <span className="font-bold text-[#e9edef] block truncate">
-                          Chatze Hub Gateway Active
-                        </span>
-                        <span className="text-[10px] text-[#8696a0] block truncate">
-                          Inquiries arrive via spam-shielded Google Auth embed
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      <a
-                        href={getHubStoreUrl(currentUser.handle)}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="px-2 py-1 bg-[#202c33] hover:bg-[#2a3942] text-[#00a884] rounded-lg text-[10px] font-semibold flex items-center gap-1 cursor-pointer"
-                      >
-                        <span>Preview on Hub</span>
-                        <ExternalLink className="w-2.5 h-2.5" />
-                      </a>
-                      <button
-                        onClick={() => setShowProfileModal(true)}
-                        className="p-1 text-[#8696a0] hover:text-[#e9edef] bg-[#202c33] hover:bg-[#2a3942] rounded-lg cursor-pointer"
-                        title="Hub Settings"
-                      >
-                        <Settings className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
-
-                  {inquiries.length === 0 ? (
-                    <div className="p-8 text-center text-xs text-[#8696a0] space-y-2 bg-[#111b21] rounded-2xl border border-[#202c33]">
-                      <Store className="w-8 h-8 mx-auto text-[#8696a0]/40 mb-2" />
-                      <p className="font-medium text-[#e9edef]">No Customer Notes Yet</p>
-                      <p className="text-[11px] text-[#8696a0]">
-                        Customers drop 1 inquiry note into your shop's Letterbox without spamming server compute.
-                      </p>
-                    </div>
-                  ) : (
-                    inquiries.map((inq) => (
-                      <div key={inq.id} className="p-3 bg-[#111b21] border border-[#202c33] rounded-xl space-y-2 text-xs">
-                        <div className="flex items-center justify-between">
-                          <div className="min-w-0">
-                            <span className="font-bold text-[#e9edef] block truncate">{inq.sender_name}</span>
-                            <span className="text-[10px] text-[#8696a0] truncate block">
-                              @{inq.sender_handle} • {inq.sender_root_domain}
-                            </span>
-                          </div>
-                          <span
-                            className={`px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider ${
-                              inq.status === 'accepted'
-                                ? 'bg-[#00a884]/20 text-[#00a884]'
-                                : inq.status === 'dismissed'
-                                ? 'bg-[#202c33] text-[#8696a0]'
-                                : 'bg-purple-500/20 text-purple-400'
-                            }`}
-                          >
-                            {inq.status}
-                          </span>
-                        </div>
-
-                        <p className="p-2.5 bg-[#0b141a] rounded-lg text-[#e9edef] text-xs border border-[#202c33]/70 leading-relaxed font-sans">
-                          "{inq.content}"
-                        </p>
-
-                        <div className="flex items-center justify-between text-[10px] text-[#8696a0] pt-0.5">
-                          <span>{new Date(inq.created_at).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}</span>
-                          <span className="text-purple-400 font-semibold">1-Card Protected</span>
-                        </div>
-
-                        {inq.status === 'pending' && (
-                          <div className="space-y-2 pt-1">
-                            <div className="flex items-center gap-1.5">
-                              <button
-                                onClick={() => handleReplyInquiry(inq.id, false)}
-                                disabled={replyingInquiryId === inq.id}
-                                title="Accept as Customer Letterbox Chat (Friends list remains clean)"
-                                className="flex-1 py-1.5 bg-[#00a884] hover:bg-[#02906f] text-[#111b21] font-bold rounded-lg text-xs transition-all cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5 shadow-sm"
-                              >
-                                <Store className="w-3.5 h-3.5" />
-                                <span>{replyingInquiryId === inq.id ? 'Opening...' : 'Accept as Letterbox'}</span>
-                              </button>
-                              <button
-                                onClick={() => handleReplyInquiry(inq.id, true)}
-                                disabled={replyingInquiryId === inq.id}
-                                title="Accept and promote customer to Trusted Friend under Friends tab"
-                                className="flex-1 py-1.5 bg-purple-600/25 hover:bg-purple-600/35 border border-purple-500/40 text-purple-200 font-bold rounded-lg text-xs transition-all cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5"
-                              >
-                                <UserCheck className="w-3.5 h-3.5 text-purple-300" />
-                                <span>Accept as Friend</span>
-                              </button>
-                            </div>
-
-                            <div className="flex items-center gap-1.5 justify-end">
-                              {inq.content.includes('📞') && (
-                                <a
-                                  href={`tel:${inq.content.split('📞')[1]?.split('•')[0]?.trim() || ''}`}
-                                  className="px-2.5 py-1 bg-[#202c33] hover:bg-[#2a3942] text-[#00a884] rounded-lg text-[11px] flex items-center gap-1 font-semibold mr-auto cursor-pointer"
-                                  title="Call customer directly"
-                                >
-                                  <Phone className="w-3 h-3" />
-                                  <span>Call</span>
-                                </a>
-                              )}
-                              <button
-                                onClick={() => handleDismissInquiry(inq.id, false)}
-                                className="px-2.5 py-1 bg-[#202c33] hover:bg-[#2a3942] text-[#8696a0] rounded-lg text-[11px] transition-all cursor-pointer"
-                              >
-                                Dismiss
-                              </button>
-                              <button
-                                onClick={() => handleDismissInquiry(inq.id, true)}
-                                title="Block this root domain permanently"
-                                className="px-2 py-1 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 rounded-lg text-[11px] transition-all cursor-pointer"
-                              >
-                                Block
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    ))
-                  )}
-
-                  {/* Active Customer Chats for merchant */}
-                  {filteredConversations.length > 0 && (
-                    <div className="space-y-2 pt-2 border-t border-[#202c33]/60">
-                      <span className="text-[10px] font-bold text-[#8696a0] uppercase tracking-wider block px-1">
-                        Active Customer Chats ({filteredConversations.length})
-                      </span>
-                      {filteredConversations.map((conv) => {
-                        const isActive = activeConv?.id === conv.id
-                        return (
-                          <div
-                            key={conv.id}
-                            onClick={() => setActiveConv(conv)}
-                            className={`p-3 rounded-xl border border-[#202c33] flex items-start gap-3 cursor-pointer transition-colors ${
-                              isActive ? 'bg-[#2a3942]' : 'bg-[#111b21] hover:bg-[#202c33]/50'
-                            }`}
-                          >
-                            <div className="w-10 h-10 rounded-full bg-purple-500/20 border border-purple-500/30 flex items-center justify-center font-bold text-xs text-purple-300 shrink-0">
-                              {conv.otherUser.displayName.slice(0, 2).toUpperCase()}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center justify-between">
-                                <span className="text-xs font-semibold text-[#e9edef] truncate">{conv.otherUser.displayName}</span>
-                                {conv.lastMessage && (
-                                  <span className="text-[10px] text-[#8696a0]">
-                                    {new Date(conv.lastMessage.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                  </span>
-                                )}
-                              </div>
-                              <p className="text-[11px] text-[#8696a0] truncate mt-0.5">{conv.lastMessage?.content || 'Chat open'}</p>
-                              <span className="inline-flex mt-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-purple-500/15 text-purple-300 border border-purple-500/30 items-center gap-1">
-                                <Store className="w-2.5 h-2.5" /> Customer Letterbox
-                              </span>
-                            </div>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          ) : filteredConversations.length === 0 ? (
-            <div className="p-8 text-center text-xs text-[#8696a0] space-y-2">
-              <MessageSquare className="w-8 h-8 mx-auto text-[#8696a0]/40 mb-2" />
-              <p className="font-medium text-[#e9edef]">No chats in this queue</p>
-              <p className="text-[11px] text-[#8696a0]">
-                {inboxFilter === 'friends'
-                  ? 'Your private Friends list is clean. Accept inquiries as Friends to promote them here.'
-                  : 'Click "+ Connect Contact" above to connect to another deployed instance.'}
-              </p>
-            </div>
-          ) : (
-            filteredConversations.map((conv) => {
-              const isActive = activeConv?.id === conv.id
-              const isPending = conv.status === 'pending'
-              return (
-                <div
-                  key={conv.id}
-                  onClick={() => setActiveConv(conv)}
-                  className={`p-3.5 flex items-start gap-3 cursor-pointer transition-colors relative ${
-                    isActive ? 'bg-[#2a3942]' : 'hover:bg-[#202c33]/40'
-                  }`}
-                >
-                  <div className="w-11 h-11 rounded-full bg-[#202c33] border border-[#222e35] flex items-center justify-center font-bold text-xs text-[#00a884] shrink-0">
-                    {conv.otherUser.displayName.slice(0, 2).toUpperCase()}
-                  </div>
-
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-semibold text-[#e9edef] truncate">
-                        {conv.otherUser.displayName}
-                      </span>
-                      {conv.lastMessage && (
-                        <span className="text-[10px] text-[#8696a0] shrink-0">
-                          {new Date(conv.lastMessage.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="flex items-center justify-between mt-1">
-                      <p className="text-[11px] text-[#8696a0] truncate max-w-[170px]">
-                        {conv.lastMessage?.content || (isPending ? 'Waiting for approval...' : 'Connected')}
-                      </p>
-                      <div className="flex items-center gap-1 shrink-0">
-                        {conv.status === 'letterbox' && (
-                          <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-purple-500/15 text-purple-400 border border-purple-500/30 flex items-center gap-0.5">
-                            <Store className="w-2.5 h-2.5" /> Letterbox
-                          </span>
-                        )}
-                        {isPending && (
-                          <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                            Pending
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )
-            })
-          )}
-        </div>
-      </aside>
-
-      {/* 2. Main Chat Panel: Full width on mobile when chat is active, hidden when back to list */}
-      <main
-        className={`${
-          !activeConv ? 'hidden md:flex' : 'flex'
-        } flex-1 flex-col bg-[#0b141a] min-w-0 relative w-full h-full`}
-      >
-        {activeConv ? (
-          <>
-            {/* Active Header (With Mobile Back Button) */}
-            <div className="h-16 px-3 sm:px-5 border-b border-[#202c33] flex items-center justify-between bg-[#202c33]/70 shrink-0 backdrop-blur-sm">
-              <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-                {/* Back button on mobile */}
-                <button
-                  onClick={() => setActiveConv(null)}
-                  className="md:hidden p-2 -ml-1 text-[#8696a0] hover:text-[#e9edef] rounded-full hover:bg-[#202c33] transition-colors shrink-0"
-                  title="Back to all chats"
-                >
-                  <ArrowLeft className="w-5 h-5" />
-                </button>
-
-                <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-[#111b21] border border-[#222e35] flex items-center justify-center font-bold text-xs text-[#00a884] shrink-0">
-                  {activeConv.otherUser.displayName.slice(0, 2).toUpperCase()}
-                </div>
-                <div className="min-w-0">
-                  <h2 className="text-xs sm:text-sm font-semibold text-[#e9edef] flex items-center gap-1.5 truncate">
-                    <span className="truncate">{activeConv.otherUser.displayName}</span>
-                    {activeConv.status === 'letterbox' ? (
-                      <span className="px-1.5 py-0.5 rounded-full text-[9px] sm:text-[10px] font-bold bg-purple-500/15 text-purple-300 border border-purple-500/30 shrink-0 flex items-center gap-1">
-                        <Store className="w-2.5 h-2.5" /> {accountType === 'personal' ? 'Letterbox Shop' : 'Letterbox Customer'}
-                      </span>
-                    ) : activeConv.status === 'pending' ? (
-                      <span className="px-1.5 py-0.5 rounded-full text-[9px] sm:text-[10px] font-normal bg-amber-500/10 text-amber-400 border border-amber-500/20 shrink-0">
-                        Pending
-                      </span>
-                    ) : (
-                      <span className="px-1.5 py-0.5 rounded-full text-[9px] sm:text-[10px] font-normal bg-[#00a884]/10 text-[#00a884] border border-[#00a884]/20 shrink-0">
-                        Friend
-                      </span>
-                    )}
-                  </h2>
-                  <p className="text-[11px] text-[#8696a0] truncate">
-                    {activeConv.remoteInstanceUrl
-                      ? activeConv.remoteInstanceUrl.replace(/^https?:\/\//, '')
-                      : `@${activeConv.otherUser.username}`}
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2 text-xs text-[#8696a0] shrink-0">
-                <PWAInstallButton />
-                <NotificationToggleButton userHandle={currentUser.handle} />
-                <span className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-full bg-[#111b21] border border-[#202c33] text-[10px] sm:text-[11px]">
-                  <span className={`w-2 h-2 rounded-full ${streamConnected ? 'bg-[#00a884]' : 'bg-amber-400 animate-ping'}`} />
-                  <span className="hidden sm:inline">{streamConnected ? '100s SSE Live' : 'Reconnecting...'}</span>
-                </span>
-              </div>
-            </div>
-
-            {/* Conversation Messages OR Pending Screen */}
-            {activeConv.status === 'pending' ? (
-              <div className="flex-1 flex flex-col items-center justify-center p-6 sm:p-8 text-center space-y-4 max-w-md mx-auto">
-                <div className="p-4 rounded-3xl bg-amber-500/10 border border-amber-500/20 text-amber-400">
-                  <Clock className="w-10 h-10 sm:w-12 sm:h-12 animate-pulse" />
-                </div>
-                <h3 className="text-base sm:text-lg font-bold text-[#e9edef]">Connection Request Pending</h3>
-                <p className="text-xs text-[#8696a0] leading-relaxed">
-                  You sent a connection request to <strong className="text-[#e9edef]">@{activeConv.otherUser.username}</strong> on{' '}
-                  <span className="text-[#00a884] font-mono break-all">{activeConv.remoteInstanceUrl || 'their instance'}</span>.
-                </p>
-                <div className="p-3 bg-[#111b21] border border-[#202c33] rounded-xl text-[11px] text-[#8696a0] text-left space-y-1 w-full">
-                  <p className="text-[#e9edef] font-medium flex items-center gap-1.5">
-                    <ShieldCheck className="w-4 h-4 text-[#00a884]" /> WhatsApp-Grade Peer Handshake:
-                  </p>
-                  <p>1. They log in to their deployed instance and click <strong>Accept</strong>.</p>
-                  <p>2. Once accepted, real-time messaging unlocks instantly on both devices in <strong>0ms</strong>.</p>
-                </div>
-
-                <div className="flex items-center justify-center gap-2 text-xs text-amber-400/90 font-medium bg-amber-500/10 border border-amber-500/20 py-2.5 px-4 rounded-xl w-full">
-                  <Clock className="w-4 h-4 animate-spin text-amber-400 shrink-0" />
-                  <span>Waiting for @{activeConv.otherUser.username} to accept your request...</span>
-                </div>
-              </div>
+          {/* Chats or Inquiries Feed */}
+          <div className="flex-1 overflow-y-auto divide-y divide-[#202c33]/40">
+            {inboxFilter === 'letterbox' || inboxFilter === 'inquiries' ? (
+              <InquiriesFeed
+                accountType={accountType}
+                currentUser={currentUser}
+                inquiries={inquiries}
+                conversations={conversations}
+                filteredConversations={filteredConversations}
+                activeConv={activeConv}
+                setActiveConv={setActiveConv}
+                handleReplyInquiry={handleReplyInquiry}
+                handleDismissInquiry={handleDismissInquiry}
+                replyingInquiryId={replyingInquiryId}
+                onOpenProfile={() => setShowProfileModal(true)}
+              />
             ) : (
-              <div
-                ref={messagesContainerRef}
-                onScroll={handleScroll}
-                className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-3 min-h-0 bg-[#0b141a]"
-              >
-                {messages.map((msg) => {
-                  const myId = (currentUser.id || '').trim().toLowerCase()
-                  const myHandle = (currentUser.handle || '').replace(/^@/, '').trim().toLowerCase()
-                  const otherHandle = (activeConv.otherUser?.username || (activeConv as any).remoteHandle || '').replace(/^@/, '').trim().toLowerCase()
-                  const otherId = (activeConv.otherUser?.id || (activeConv as any).user_b || '').trim().toLowerCase()
-                  const convTarget = (activeConv.id || '').replace(/^conv_/, '').trim().toLowerCase()
-
-                  const senderClean = (msg.senderId || '').replace(/^@/, '').trim().toLowerCase()
-                  const senderHandleClean = ((msg as any).senderHandle || '').replace(/^@/, '').trim().toLowerCase()
-                  const recipientClean = ((msg as any).recipientHandle || '').replace(/^@/, '').trim().toLowerCase()
-
-                  // 1. Is this message from the customer / remote peer?
-                  const isFromOther = Boolean(
-                    (otherHandle && senderClean === otherHandle) ||
-                    (otherHandle && senderHandleClean === otherHandle) ||
-                    (otherId && senderClean === otherId) ||
-                    (otherHandle && senderClean.includes(otherHandle)) ||
-                    (convTarget && senderClean.includes(convTarget)) ||
-                    senderClean.startsWith('usr_hub_') ||
-                    senderClean === 'customer' ||
-                    (recipientClean && recipientClean === myHandle && senderClean !== myId && senderClean !== myHandle && senderClean !== 'usr_admin') ||
-                    (senderClean !== myId && senderClean !== myHandle && senderClean !== 'usr_admin' && (otherHandle || otherId))
-                  )
-
-                  // 2. Is this message from ME (the merchant)?
-                  // If it's explicitly from other, it is NOT me. Otherwise, it is me.
-                  const isMe = !isFromOther
-                  const parsed = parseMessageContent(msg.body)
-
-                  return (
-                    <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-                      <div
-                        className={`max-w-[85%] sm:max-w-[70%] md:max-w-[55%] rounded-2xl ${
-                          parsed.isImage ? 'p-1.5' : 'px-3.5 sm:px-4 py-2'
-                        } text-sm shadow-sm transition-all ${
-                          isMe
-                            ? 'bg-[#005c4b] text-[#e9edef] rounded-br-none'
-                            : 'bg-[#202c33] text-[#e9edef] rounded-bl-none'
-                        }`}
-                      >
-                        {parsed.isImage && parsed.imageUrl ? (
-                          <div className="space-y-1.5">
-                            <div
-                              onClick={() => setLightboxUrl(parsed.imageUrl!)}
-                              className="relative group rounded-xl overflow-hidden cursor-pointer bg-[#111b21] max-h-[380px] flex items-center justify-center border border-white/5"
-                            >
-                              <img
-                                src={getOptimizedImageUrl(parsed.imageUrl, 700)}
-                                onError={(e) => {
-                                  const target = e.currentTarget
-                                  if (parsed.imageUrl && target.src !== parsed.imageUrl) {
-                                    target.src = parsed.imageUrl
-                                  }
-                                }}
-                                alt={parsed.caption || 'Photo message'}
-                                loading="lazy"
-                                className="w-full h-auto max-h-[380px] object-cover rounded-xl transition-transform duration-200 group-hover:scale-[1.02]"
-                              />
-                              <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 text-white">
-                                <span className="p-2 rounded-full bg-black/60 backdrop-blur-sm">
-                                  <Maximize2 className="w-4 h-4" />
-                                </span>
-                              </div>
-                            </div>
-                            {parsed.caption && (
-                              <p className="px-2 pt-0.5 break-words leading-relaxed text-[13px] sm:text-sm">
-                                {parsed.caption}
-                              </p>
-                            )}
-                          </div>
-                        ) : (
-                          <p className="break-words leading-relaxed text-[13px] sm:text-sm">{msg.body}</p>
-                        )}
-
-                        <div className={`flex items-center justify-end gap-1 ${parsed.isImage ? 'px-2 pb-1 pt-0.5' : 'mt-1'} text-[10px] text-[#8696a0]`}>
-                          <span>
-                            {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                          </span>
-                          {isMe && (
-                            msg.status === 'sending' ? (
-                              <Clock className="w-3 h-3 animate-spin text-[#8696a0]" />
-                            ) : (
-                              <CheckCheck className="w-3.5 h-3.5 text-[#53bdeb]" />
-                            )
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  )
-                })}
-                <div ref={messagesEndRef} />
-              </div>
-            )}
-
-            {/* Scroll to Bottom Button */}
-            {showScrollBottom && (
-              <button
-                onClick={() => scrollToBottom('smooth')}
-                className="absolute bottom-24 right-4 sm:right-8 p-3 rounded-full bg-[#202c33] border border-[#222e35] text-[#00a884] shadow-xl hover:bg-[#2a3942] transition-all flex items-center gap-1.5 text-xs cursor-pointer z-20"
-              >
-                <ArrowDown className="w-4 h-4" />
-                {hasNewUnreadWhileScrolled && (
-                  <span className="px-1.5 py-0.5 rounded-full bg-[#00a884] text-[#111b21] font-bold text-[10px]">
-                    New
-                  </span>
-                )}
-              </button>
-            )}
-
-            {/* Quick Replies Bar */}
-            {activeConv.status !== 'pending' && (
-              <div className="px-3 sm:px-5 py-2 border-t border-[#202c33] bg-[#111b21]/70 flex items-center gap-2 overflow-x-auto no-scrollbar shrink-0">
-                <span className="text-[10px] sm:text-[11px] font-semibold text-[#8696a0] uppercase tracking-wider shrink-0 flex items-center gap-1">
-                  <Sparkles className="w-3 h-3 text-[#00a884]" /> Quick:
-                </span>
-                {UNIVERSAL_QUICK_REPLIES.map((reply, i) => (
-                  <button
-                    key={i}
-                    type="button"
-                    onClick={() => handleSendMessage(undefined, reply.text)}
-                    className="px-2.5 sm:px-3 py-1 bg-[#202c33] hover:bg-[#2a3942] border border-[#222e35] rounded-full text-[11px] sm:text-xs text-[#e9edef] whitespace-nowrap transition-colors shrink-0 cursor-pointer"
-                  >
-                    {reply.label}
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {/* Input Composer Bar */}
-            <form
-              onSubmit={handleSendMessage}
-              onPaste={handlePaste}
-              className="p-2.5 sm:p-3.5 border-t border-[#202c33] bg-[#202c33]/50 flex items-center gap-2 sm:gap-3 shrink-0"
-            >
-              <input
-                type="file"
-                ref={fileInputRef}
-                accept="image/*"
-                onChange={handleFileInputChange}
-                className="hidden"
+              <ConversationList
+                conversations={filteredConversations}
+                activeConv={activeConv}
+                setActiveConv={setActiveConv}
+                inboxFilter={inboxFilter}
+                onOpenConnectContact={() => setShowAddFriendModal(true)}
               />
-              <button
-                type="button"
-                disabled={activeConv.status === 'pending'}
-                onClick={() => fileInputRef.current?.click()}
-                className="p-2 sm:p-2.5 text-[#8696a0] hover:text-[#00a884] hover:bg-[#2a3942] rounded-xl transition-all cursor-pointer disabled:opacity-40 shrink-0"
-                title="Attach & Send Photo (or Paste with Ctrl+V)"
-              >
-                <ImageIcon className="w-5 h-5" />
-              </button>
-
-              <input
-                type="text"
-                disabled={activeConv.status === 'pending'}
-                value={inputText}
-                onChange={(e) => setInputText(e.target.value)}
-                placeholder={
-                  activeConv.status === 'pending'
-                    ? 'Waiting for contact to approve...'
-                    : 'Type a message or paste photo (Ctrl+V)...'
-                }
-                className="flex-1 bg-[#2a3942] border border-[#222e35] rounded-xl px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm text-[#e9edef] placeholder-[#8696a0] focus:outline-none focus:border-[#00a884] disabled:opacity-40 transition-all"
-              />
-              <button
-                type="submit"
-                disabled={activeConv.status === 'pending' || !inputText.trim()}
-                className="p-2.5 bg-[#00a884] hover:bg-[#02906f] disabled:opacity-40 text-[#111b21] font-bold rounded-xl transition-all shadow-md shadow-[#00a884]/20 cursor-pointer shrink-0"
-              >
-                <Send className="w-4 h-4 sm:w-5 sm:h-5" />
-              </button>
-            </form>
-          </>
-        ) : (
-          <div className="flex-1 flex flex-col items-center justify-center text-center p-6 sm:p-8 space-y-4 max-w-sm mx-auto">
-            <div className="p-4 rounded-3xl bg-[#111b21] border border-[#202c33] text-[#8696a0]">
-              <MessageSquare className="w-10 h-10 sm:w-12 sm:h-12 text-[#00a884]" />
-            </div>
-            <h3 className="text-base font-bold text-[#e9edef]">Independent WhatsApp at Edge</h3>
-            <p className="text-xs text-[#8696a0] leading-relaxed">
-              Connect with any user across Cloudflare instances by adding their username and subdomain/domain.
-            </p>
-            <button
-              onClick={() => setShowAddFriendModal(true)}
-              className="py-2.5 px-4 bg-[#00a884] hover:bg-[#02906f] text-[#111b21] rounded-xl text-xs font-bold flex items-center gap-2 cursor-pointer shadow-lg shadow-[#00a884]/20"
-            >
-              <UserPlus className="w-4 h-4" /> Connect Contact
-            </button>
-          </div>
-        )}
-      </main>
-
-      {/* 3. Connect Contact Modal */}
-      {showAddFriendModal && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 z-50 animate-in fade-in duration-150">
-          <div className="max-w-md w-full bg-[#111b21] border border-[#202c33] rounded-2xl p-5 sm:p-6 shadow-2xl space-y-4 sm:space-y-5 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <div className="p-2 rounded-xl bg-[#00a884]/10 border border-[#00a884]/20 text-[#00a884]">
-                  <UserPlus className="w-5 h-5" />
-                </div>
-                <h3 className="text-sm sm:text-base font-bold text-[#e9edef]">Connect Contact Instance</h3>
-              </div>
-              <button onClick={() => setShowAddFriendModal(false)} className="text-[#8696a0] hover:text-[#e9edef]">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <p className="text-xs text-[#8696a0] leading-relaxed">
-              Enter your contact's username and their deployed Cloudflare Workers URL or domain to send an encrypted connection request.
-            </p>
-
-            {accountType === 'business' && (
-              <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl space-y-1.5 text-xs text-[#e9edef]">
-                <div className="flex items-center gap-1.5 text-amber-400 font-bold">
-                  <Shield className="w-3.5 h-3.5" />
-                  <span>Business Friend Request Privacy</span>
-                </div>
-                <p className="text-[11px] text-[#8696a0] leading-snug">
-                  Incoming friend requests to your business are locked to <strong>Private (PIN-Only)</strong> to stop automated bots from consuming your free Cloudflare quota.
-                  You can manually add any private friend here, or share your Private PIN: <strong className="text-[#00a884] font-mono tracking-wider">{myFriendPin || 'NP-7429'}</strong> with trusted suppliers.
-                </p>
-              </div>
             )}
-
-            {addFriendError && (
-              <div className="p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl text-xs text-rose-400 flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 shrink-0" />
-                <span>{addFriendError}</span>
-              </div>
-            )}
-
-            <form onSubmit={handleSendFriendRequest} className="space-y-4">
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-[#8696a0]">Contact's Username / Handle</label>
-                <div className="relative">
-                  <span className="absolute left-3.5 top-2.5 text-[#8696a0] text-sm">@</span>
-                  <input
-                    type="text"
-                    required
-                    value={friendHandle}
-                    onChange={(e) => setFriendHandle(e.target.value)}
-                    placeholder="e.g. suraj or alice"
-                    className="w-full pl-8 pr-3.5 py-2.5 bg-[#202c33] border border-[#222e35] rounded-xl text-xs sm:text-sm text-[#e9edef] focus:outline-none focus:border-[#00a884]"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-[#8696a0]">Contact's Subdomain & Domain / URL</label>
-                <div className="relative">
-                  <Globe className="w-4 h-4 absolute left-3.5 top-3 text-[#8696a0]" />
-                  <input
-                    type="text"
-                    required
-                    value={friendDomain}
-                    onChange={(e) => setFriendDomain(e.target.value)}
-                    placeholder="e.g. your-friend.workers.dev"
-                    className="w-full pl-10 pr-3.5 py-2.5 bg-[#202c33] border border-[#222e35] rounded-xl text-xs sm:text-sm text-[#e9edef] focus:outline-none focus:border-[#00a884]"
-                  />
-                </div>
-                <p className="text-[10px] text-[#8696a0] pl-1">
-                  Their Cloudflare Workers domain (e.g. username.workers.dev)
-                </p>
-              </div>
-
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-medium text-[#8696a0]">Friend PIN (Optional / Handshake)</label>
-                  <span className="text-[10px] text-[#00a884] font-medium">Anti-Spam Shield</span>
-                </div>
-                <input
-                  type="text"
-                  value={friendPinInput}
-                  onChange={(e) => setFriendPinInput(e.target.value.toUpperCase())}
-                  placeholder="e.g. NP-7429 (leave blank if they have open privacy)"
-                  className="w-full px-3.5 py-2.5 bg-[#202c33] border border-[#222e35] rounded-xl text-xs sm:text-sm text-[#e9edef] font-mono tracking-wider focus:outline-none focus:border-[#00a884]"
-                />
-                <p className="text-[10px] text-[#8696a0] pl-1">
-                  Required if the contact has enabled PIN-Protected mode to stop spam bots.
-                </p>
-              </div>
-
-              <div className="pt-2 flex items-center justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setShowAddFriendModal(false)}
-                  className="px-4 py-2.5 text-xs text-[#8696a0] hover:text-[#e9edef]"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={sendingRequest || !friendHandle.trim() || !friendDomain.trim()}
-                  className="px-5 py-2.5 bg-[#00a884] hover:bg-[#02906f] disabled:opacity-50 text-[#111b21] font-bold rounded-xl text-xs flex items-center gap-2 cursor-pointer shadow-lg shadow-[#00a884]/20"
-                >
-                  {sendingRequest ? 'Dispatching...' : 'Send Friend Request'}
-                </button>
-              </div>
-            </form>
           </div>
-        </div>
-      )}
+        </aside>
 
-      {/* 4. My Instance Address Modal */}
-      {showIdentityModal && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 z-50">
-          <div className="max-w-md w-full bg-[#111b21] border border-[#202c33] rounded-2xl p-5 sm:p-6 shadow-2xl space-y-4 sm:space-y-5 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <div className="p-2 rounded-xl bg-[#00a884]/10 border border-[#00a884]/20 text-[#00a884]">
-                  <Share2 className="w-5 h-5" />
-                </div>
-                <h3 className="text-sm sm:text-base font-bold text-[#e9edef]">Your Chatze Address</h3>
-              </div>
-              <button onClick={() => setShowIdentityModal(false)} className="text-[#8696a0] hover:text-[#e9edef]">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <p className="text-xs text-[#8696a0] leading-relaxed">
-              Share your username and instance domain with friends so they can add you from their own deployed app!
-            </p>
-
-            <div className="p-4 bg-[#0b141a] rounded-xl border border-[#202c33] space-y-3 text-xs">
-              <div>
-                <span className="text-[#8696a0] text-[11px] block">Your Username</span>
-                <span className="text-[#00a884] font-bold font-mono text-sm">@{currentUser.handle}</span>
-              </div>
-              <div>
-                <span className="text-[#8696a0] text-[11px] block">Your Deployed Domain</span>
-                <span className="text-[#e9edef] font-mono text-xs break-all">
-                  {typeof window !== 'undefined' ? window.location.origin : 'https://your-subdomain.workers.dev'}
-                </span>
-              </div>
-            </div>
-
-            <button
-              onClick={() => {
-                const text = `Connect with me on Chatze WhatsApp!\nUsername: @${currentUser.handle}\nInstance: ${window.location.origin}`
-                navigator.clipboard.writeText(text)
-                setCopiedLink(true)
-                setTimeout(() => setCopiedLink(false), 2000)
-              }}
-              className="w-full py-2.5 bg-[#00a884] hover:bg-[#02906f] text-[#111b21] font-bold rounded-xl text-xs flex items-center justify-center gap-2 cursor-pointer transition-all"
-            >
-              {copiedLink ? <CheckCheck className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-              {copiedLink ? 'Copied to Clipboard!' : 'Copy Connection Details'}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* 5. Payment QR Modal */}
-      {showQrModal && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 z-50">
-          <div className="max-w-xs w-full bg-[#111b21] border border-[#202c33] rounded-2xl p-5 sm:p-6 text-center space-y-4 shadow-2xl">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-[#00a884] uppercase tracking-wider">
-                Fonepay & eSewa QR
-              </span>
-              <button onClick={() => setShowQrModal(false)} className="text-[#8696a0] hover:text-[#e9edef]">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="p-4 bg-white rounded-xl mx-auto w-44 h-44 sm:w-48 sm:h-48 flex items-center justify-center">
-              <QrCode className="w-36 h-36 sm:w-40 sm:h-40 text-slate-950" />
-            </div>
-
-            <div className="space-y-1 text-xs">
-              <p className="font-semibold text-[#e9edef]">{currentUser.display_name}</p>
-              <p className="text-[#8696a0]">Scan via eSewa, Khalti, or mobile banking</p>
-            </div>
-
-            <button
-              onClick={() => {
-                setShowQrModal(false)
-                if (activeConv && activeConv.status !== 'pending') {
-                  handleSendMessage(undefined, '💳 Scannable Payment QR: Open your eSewa, Khalti, or mobile banking app and scan to pay.')
-                }
-              }}
-              className="w-full py-2.5 bg-[#00a884] text-[#111b21] font-bold rounded-xl text-xs hover:bg-[#02906f] transition-colors cursor-pointer"
-            >
-              Share QR in Chat
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* 6. Image Preview & Send Modal */}
-      {selectedImageFile && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 z-50">
-          <div className="max-w-md w-full bg-[#111b21] border border-[#202c33] rounded-2xl p-4 sm:p-5 shadow-2xl space-y-3.5">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-[#e9edef] flex items-center gap-1.5">
-                <ImageIcon className="w-4 h-4 text-[#00a884]" /> Send Photo
-              </span>
-              <button
-                disabled={isUploadingImage}
-                onClick={() => setSelectedImageFile(null)}
-                className="text-[#8696a0] hover:text-[#e9edef] disabled:opacity-40"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="relative rounded-xl overflow-hidden bg-black/50 max-h-[300px] sm:max-h-[360px] flex items-center justify-center border border-white/5">
-              <img
-                src={selectedImageFile.dataUrl}
-                alt="Upload preview"
-                className="w-full h-auto max-h-[300px] sm:max-h-[360px] object-contain rounded-xl"
-              />
-              <span className="absolute bottom-2 right-2 px-2.5 py-1 rounded-full bg-black/75 backdrop-blur-md text-[10px] text-[#00a884] font-mono border border-[#00a884]/30 shadow-lg">
-                ~{selectedImageFile.sizeKb} KB
-                {selectedImageFile.originalKb && selectedImageFile.originalKb > selectedImageFile.sizeKb ? (
-                  <span className="text-white/80 ml-1">
-                    (from {selectedImageFile.originalKb} KB, {Math.round((1 - selectedImageFile.sizeKb / selectedImageFile.originalKb) * 100)}% saved)
-                  </span>
-                ) : ' (Edge Optimized)'}
-              </span>
-            </div>
-
-            <div className="space-y-1">
-              <input
-                type="text"
-                disabled={isUploadingImage}
-                value={selectedImageFile.caption}
-                onChange={(e) => setSelectedImageFile((prev) => prev ? { ...prev, caption: e.target.value } : null)}
-                placeholder="Add a caption... (optional)"
-                className="w-full px-3.5 py-2.5 bg-[#202c33] border border-[#222e35] rounded-xl text-xs sm:text-sm text-[#e9edef] placeholder-[#8696a0] focus:outline-none focus:border-[#00a884]"
-              />
-              <p className="text-[10px] text-[#8696a0] px-1 flex items-center justify-between">
-                <span>Auto-converted to lightweight WebP for D1 database storage.</span>
-                <span className="text-[#00a884] font-medium">Cached via wsrv.nl</span>
-              </p>
-            </div>
-
-            <div className="flex items-center justify-end gap-2 pt-1">
-              <button
-                type="button"
-                disabled={isUploadingImage}
-                onClick={() => setSelectedImageFile(null)}
-                className="px-4 py-2 text-xs text-[#8696a0] hover:text-[#e9edef] disabled:opacity-40"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                disabled={isUploadingImage}
-                onClick={handleSendImage}
-                className="px-5 py-2.5 bg-[#00a884] hover:bg-[#02906f] disabled:opacity-50 text-[#111b21] font-bold rounded-xl text-xs flex items-center gap-2 cursor-pointer shadow-lg shadow-[#00a884]/20"
-              >
-                {isUploadingImage ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Uploading...</span>
-                  </>
-                ) : (
-                  <>
-                    <Send className="w-3.5 h-3.5" />
-                    <span>Send Photo</span>
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 7. Image Lightbox Modal */}
-      {lightboxUrl && (
-        <div
-          onClick={() => setLightboxUrl(null)}
-          className="fixed inset-0 bg-black/90 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 z-50 animate-in fade-in duration-150"
+        {/* 2. Main Chat Panel */}
+        <main
+          className={`${
+            !activeConv ? 'hidden md:flex' : 'flex'
+          } flex-1 flex-col bg-[#0b141a] min-w-0 relative w-full h-full`}
         >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="relative max-w-4xl w-full max-h-[90vh] flex flex-col items-center"
-          >
-            <div className="absolute top-2 right-2 flex items-center gap-2 z-10">
-              <a
-                href={getOptimizedImageUrl(lightboxUrl, 1600)}
-                target="_blank"
-                rel="noopener noreferrer"
-                download="photo.webp"
-                className="p-2 rounded-full bg-black/60 hover:bg-black/80 text-white backdrop-blur-sm transition-all"
-                title="Download original"
-              >
-                <Download className="w-4 h-4" />
-              </a>
+          {activeConv ? (
+            <>
+              {/* Active Header */}
+              <ChatHeader
+                activeConv={activeConv}
+                accountType={accountType}
+                currentUser={currentUser}
+                streamConnected={streamConnected}
+                onBack={() => setActiveConv(null)}
+              />
+
+              {/* Message Stream */}
+              <ChatStreamView
+                activeConv={activeConv}
+                currentUser={currentUser}
+                messages={messages}
+                messagesContainerRef={messagesContainerRef}
+                messagesEndRef={messagesEndRef}
+                handleScroll={handleScroll}
+                showScrollBottom={showScrollBottom}
+                hasNewUnreadWhileScrolled={hasNewUnreadWhileScrolled}
+                scrollToBottom={scrollToBottom}
+                onOpenLightbox={(url) => setLightboxUrl(url)}
+              />
+
+              {/* Message Composer */}
+              <ChatComposer
+                activeConv={activeConv}
+                inputText={inputText}
+                setInputText={setInputText}
+                handleSendMessage={handleSendMessage}
+                handlePaste={handlePaste}
+                handleFileInputChange={handleFileInputChange}
+                fileInputRef={fileInputRef}
+              />
+            </>
+          ) : (
+            <div className="flex-1 flex flex-col items-center justify-center text-center p-6 sm:p-8 space-y-4 max-w-sm mx-auto">
+              <div className="p-4 rounded-3xl bg-[#111b21] border border-[#202c33] text-[#8696a0]">
+                <MessageSquare className="w-10 h-10 sm:w-12 sm:h-12 text-[#00a884]" />
+              </div>
+              <h3 className="text-base font-bold text-[#e9edef]">Independent WhatsApp at Edge</h3>
+              <p className="text-xs text-[#8696a0] leading-relaxed">
+                Connect with any user across Cloudflare instances by adding their username and subdomain/domain.
+              </p>
               <button
-                onClick={() => setLightboxUrl(null)}
-                className="p-2 rounded-full bg-black/60 hover:bg-black/80 text-white backdrop-blur-sm transition-all"
-                title="Close"
+                onClick={() => setShowAddFriendModal(true)}
+                className="py-2.5 px-4 bg-[#00a884] hover:bg-[#02906f] text-[#111b21] rounded-xl text-xs font-bold flex items-center gap-2 cursor-pointer shadow-lg shadow-[#00a884]/20"
               >
-                <X className="w-5 h-5" />
+                <UserPlus className="w-4 h-4" /> Connect Contact
               </button>
             </div>
+          )}
+        </main>
 
-            <img
-              src={getOptimizedImageUrl(lightboxUrl, 1600)}
-              onError={(e) => {
-                const target = e.currentTarget
-                if (lightboxUrl && target.src !== lightboxUrl) {
-                  target.src = lightboxUrl
-                }
-              }}
-              alt="Full view"
-              className="max-w-full max-h-[85vh] object-contain rounded-xl shadow-2xl"
-            />
-          </div>
-        </div>
-      )}
+        {/* 3. Connect Contact Modal */}
+        <ConnectContactModal
+          isOpen={showAddFriendModal}
+          onClose={() => setShowAddFriendModal(false)}
+          accountType={accountType}
+          myFriendPin={myFriendPin}
+          friendHandle={friendHandle}
+          setFriendHandle={setFriendHandle}
+          friendDomain={friendDomain}
+          setFriendDomain={setFriendDomain}
+          friendPinInput={friendPinInput}
+          setFriendPinInput={setFriendPinInput}
+          addFriendError={addFriendError}
+          sendingRequest={sendingRequest}
+          handleSendFriendRequest={handleSendFriendRequest}
+        />
 
+        {/* 4. My Instance Address Modal */}
+        <IdentityAddressModal
+          isOpen={showIdentityModal}
+          onClose={() => setShowIdentityModal(false)}
+          currentUser={currentUser}
+          copiedLink={copiedLink}
+          setCopiedLink={setCopiedLink}
+        />
+
+        {/* 5. Payment QR Modal */}
+        <PaymentQrModal
+          isOpen={showQrModal}
+          onClose={() => setShowQrModal(false)}
+          currentUser={currentUser}
+          activeConv={activeConv}
+          handleSendMessage={handleSendMessage}
+        />
+
+        {/* 6. Image Preview & Send Modal */}
+        <ImageSendModal
+          selectedImageFile={selectedImageFile}
+          setSelectedImageFile={setSelectedImageFile}
+          isUploadingImage={isUploadingImage}
+          handleSendImage={handleSendImage}
+        />
+
+        {/* 7. Image Lightbox Modal */}
+        <ImageLightboxModal
+          lightboxUrl={lightboxUrl}
+          onClose={() => setLightboxUrl(null)}
+        />
       </div>
 
       {/* Profile & Privacy Settings Modal */}

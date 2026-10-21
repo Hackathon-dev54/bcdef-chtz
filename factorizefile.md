@@ -10,75 +10,44 @@ This document outlines the systematic refactoring of monolithic UI components in
 | :--- | :--- | :--- | :--- |
 | **`src/components/CustomerInquiryPage.tsx`** | ~1,385 lines | `src/components/letterbox/` (Types, Audio, Header, Form, Pending, LiveChat) | 🟢 **Step 1 (Completed)** |
 | **`src/components/ProfileSettingsModal.tsx`** | ~1,111 lines | `src/components/profile/` (AccountTab, PrivacyTab, HubTab, EdgeTab, Header) | 🟢 **Step 2 (Completed)** |
-| **`src/components/MessagingApp.tsx`** | ~2,353 lines | `src/components/messaging/` (Sidebar, ChatFeed, MessageInput, MediaViewer, etc.) | 🟡 **Step 3 (Next Target)** |
+| **`src/components/MessagingApp.tsx`** | ~2,354 lines | `src/components/messaging/` (Sidebar, ChatStream, Composer, 5 Modals, MediaUtils) | 🟢 **Step 3 (Completed)** |
 
 ---
 
-## 📋 Step 1: `CustomerInquiryPage.tsx` (1,385 lines ➔ Modular Letterbox)
-
-### Modular Breakdown (`src/components/letterbox/`):
-
-1. **`types.ts`**:
-   - `ShopProfile`, `CustomerInquiryPageProps`, `ChatMessage`, `InquiryCategory`
-   - `INQUIRY_CATEGORIES`, `QUICK_PROMPTS`
-2. **`audio.ts`**:
-   - `playGentleChime()`: Web Audio API gentle synthesizer for incoming merchant replies.
-3. **`LetterboxHeader.tsx`**:
-   - Store identity badge (`displayName`, `@handle`, Hub Verified pill).
-   - Audio chime mute/unmute toggle.
-   - Share link copy button.
-   - Owner login / launch app quick buttons.
-4. **`LetterboxCompositionForm.tsx`**:
-   - Shop storefront banner (location, hours, delivery info, bio, catalog tags).
-   - Inquiring identity card (Google email, sovereign node badge).
-   - Category selection grid (Price & Stock, Delivery, Wholesale, General).
-   - Zero-invocation FAQ chips & instant answer deflection card.
-   - 500-char note composition textarea with live counter.
-   - Contact phone/WhatsApp input.
-   - Submit action button ("Drop Note into Sovereign Letterbox").
-5. **`LetterboxPendingCard.tsx`**:
-   - Visual pending indicator with pulsing status badge.
-   - Inquiry note card preview.
-   - Live SSE connection status indicator ("Direct Edge SSE Active").
-   - "Check for Merchant Reply / Open Chat" sync button.
-6. **`LetterboxLiveChat.tsx`**:
-   - Collapsible inquiry note summary bar.
-   - Real-time conversation message feed with optimistic delivery states.
-   - Image bubble rendering with full-resolution lightbox trigger.
-   - Quick prompt action chips.
-   - Chat input bar with WebP image attachment & send button.
-7. **`CustomerInquiryPage.tsx`** (Orchestrator):
-   - Holds core state, URL query params resolution, and SSE stream lifecycle.
-   - Composes the subcomponents cleanly.
+## 📋 Step 1: `CustomerInquiryPage.tsx` (1,385 lines ➔ Modular Letterbox) — ✅ COMPLETED
+- Reduced `CustomerInquiryPage.tsx` to clean orchestrator.
+- Modularized into `src/components/letterbox/` (`types.ts`, `audio.ts`, `LetterboxHeader.tsx`, `LetterboxCompositionForm.tsx`, `LetterboxPendingCard.tsx`, `LetterboxLiveChat.tsx`).
 
 ---
 
 ## 📋 Step 2: `ProfileSettingsModal.tsx` (1,111 lines ➔ Modular Settings) — ✅ COMPLETED
 - Reduced root `ProfileSettingsModal.tsx` from 1,111 lines to 296 lines orchestrator.
-- Modularized into `src/components/profile/`:
-  - `types.ts`: Profile interfaces, `BUSINESS_CATEGORIES`, and `faqsToEditableText` helper.
-  - `ProfileHeader.tsx`: Modal header, store/user badge, close button, and 4 tab switcher buttons.
-  - `AccountSettingsTab.tsx`: Profile identity, business categories/hours/coverage, and instant FAQ bot upload/editor.
-  - `PrivacySettingsTab.tsx`: Anti-spam mode, friend PIN management, and portfolio links.
-  - `HubSettingsTab.tsx`: Chatze Hub listing, 1-click registration/sync, embed URLs, protocol info, and hub zip download.
-  - `EdgeStorageTab.tsx`: Cloudflare Edge status, KTM PoP region, D1 shards, and Data Sovereignty metrics.
+- Modularized into `src/components/profile/` (`types.ts`, `ProfileHeader.tsx`, `AccountSettingsTab.tsx`, `PrivacySettingsTab.tsx`, `HubSettingsTab.tsx`, `EdgeStorageTab.tsx`, `index.ts`).
+
+---
+
+## 📋 Step 3: `MessagingApp.tsx` (2,354 lines ➔ Modular Messaging Suite) — ✅ COMPLETED
+- Reduced root `MessagingApp.tsx` from 2,354 lines to 597 lines orchestrator.
+- Modularized into `src/components/messaging/`:
+  - `types.ts`: `Conversation`, `ChatMessage`, `Friendship`, `ParsedMessage`, `InboxFilter`, `UNIVERSAL_QUICK_REPLIES`.
+  - `mediaUtils.ts`: `getOptimizedImageUrl` (wsrv.nl proxy), `parseMessageContent`, `compressImageToWebP`.
+  - `SidebarHeader.tsx`: Profile identity avatar, quick actions (Identity, QR, Hub, Settings, Logout), business letterbox share card, search bar, and filter tabs.
+  - `IncomingRequestsBanner.tsx`: P2P federation incoming requests banner with Accept, Decline, and Block actions.
+  - `InquiriesFeed.tsx`: Customer Letterbox & Merchant Letterbox inquiry cards, direct call button, dismiss/block actions, active customer chats, and empty state.
+  - `ConversationList.tsx`: Infinite windowed active, pending, unread, and friend chats with badges and empty state.
+  - `ChatHeader.tsx`: Peer identity, status pills (Letterbox/Pending/Friend), PWA/Notification buttons, and live SSE indicator.
+  - `ChatStreamView.tsx`: Peer handshake pending screen, speech bubbles (text & WebP photos with wsrv.nl proxy and lightbox trigger), timestamp, delivery check ticks, and scroll-to-bottom button.
+  - `ChatComposer.tsx`: Canned quick reply chips and message input bar with photo attachment.
+  - `modals/ConnectContactModal.tsx`: Federation connect contact request modal with business privacy explanation.
+  - `modals/IdentityAddressModal.tsx`: User handle and instance domain address copy modal.
+  - `modals/PaymentQrModal.tsx`: Fonepay & eSewa QR payment modal.
+  - `modals/ImageSendModal.tsx`: WebP image preview, compression stats, caption input, and upload modal.
+  - `modals/ImageLightboxModal.tsx`: Full-resolution image lightbox viewer with WebP download.
   - `index.ts`: Clean barrel exports.
 
 ---
 
-## 📋 Step 3: `MessagingApp.tsx` (2,353 lines ➔ Modular Inbox)
-
-### Modular Breakdown (`src/components/messaging/`):
-- `types.ts`: Conversation, Contact, Message, and Draft types.
-- `ConversationList.tsx`: Infinite windowed active, unread, and resolved queues.
-- `ChatHeader.tsx`: Peer identity, verified build badge, connection health.
-- `ChatStreamView.tsx`: Chronological message bubbles, read receipts, and media attachments.
-- `ChatComposer.tsx`: Canned quick replies, WebP compressor, and 1-Hit D1 batch flusher.
-- `ConnectionModal.tsx`: Dual-sided P2P cryptographic handshake modals.
-
----
-
-## ✅ Quality Criteria
-- Zero runtime regression or visual alteration.
-- Strict TypeScript compile without any errors (`tsc --noEmit`).
+## ✅ Quality Criteria Met
+- Zero runtime regressions or missing features.
+- Strict TypeScript compile without any errors.
 - Fast Vite production bundle build (`npm run build`).
