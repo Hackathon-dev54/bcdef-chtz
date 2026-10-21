@@ -18,7 +18,7 @@ const MAX_IMAGE_BYTES = 500 * 1024 // 500 KB hardcap (compressed to ~25 KB WebP 
  */
 function getMediaDb(env?: Bindings): any {
   if (!env) return null
-  return env.DB_SHARD_9 || getCoreDb(env) || env.DB || null
+  return env.DB_SHARD_8 || env.DB_SHARD_9 || getCoreDb(env) || env.DB || null
 }
 
 // Security-Hardened Media Upload API (Adaptive Zero-Card D1 Binary + R2 Switch + wsrv.nl CDN)
@@ -110,7 +110,7 @@ const handleMediaUpload = async (c: any) => {
             'INSERT OR REPLACE INTO media_blobs (id, content_type, byte_size, data, created_at) VALUES (?, ?, ?, ?, ?)'
           ).bind(mediaId, mime, rawBytes.length, rawBytes, now).run()
 
-          storageEngine = c.env?.DB_SHARD_9 ? 'd1_shard_9' : 'd1_core'
+          storageEngine = c.env?.DB_SHARD_8 ? 'd1_shard_8' : (c.env?.DB_SHARD_9 ? 'd1_shard_9' : 'd1_core')
         } catch (d1Err: any) {
           console.warn('[D1 Media Blob Insert Warning]', d1Err?.message)
         }

@@ -4,7 +4,7 @@
 import type { Bindings } from './types'
 
 export const SHARD_HARDCAP_MB = 450 // 90% of 500 MB limit (Leaves 50 MB safety buffer)
-export const MAX_VAULT_SHARDS = 9
+export const MAX_VAULT_SHARDS = 8
 
 const initializedVaultShards = new Set<string>()
 
@@ -124,6 +124,7 @@ export async function getReadShardForThread(conversationId: string, env?: Bindin
         const shardBindingKey = `DB_SHARD_${row.shard_id}` as keyof Bindings
         const shardDb = (env as any)[shardBindingKey]
         if (shardDb) {
+          await ensureVaultShard(shardDb, row.shard_id)
           return shardDb
         }
       }

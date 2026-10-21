@@ -301,7 +301,7 @@ profileRoutes.get('/api/system/shards', async (c) => {
         hardcapMB: SHARD_HARDCAP_MB,
         percentUsed: Number(((sizeMB / SHARD_HARDCAP_MB) * 100).toFixed(1)),
         status: i === activeShardId ? 'active_write' : sizeMB >= SHARD_HARDCAP_MB ? 'sealed_full' : 'standby',
-        isMediaVault: i === 9,
+        isMediaVault: i === 8 || i === 9,
       })
     } else {
       shardStatuses.push({
@@ -312,7 +312,7 @@ profileRoutes.get('/api/system/shards', async (c) => {
         hardcapMB: SHARD_HARDCAP_MB,
         percentUsed: 0,
         status: 'unbound',
-        isMediaVault: i === 9,
+        isMediaVault: i === 8 || i === 9,
       })
     }
   }
@@ -320,6 +320,8 @@ profileRoutes.get('/api/system/shards', async (c) => {
   let mediaEngine = 'd1_core'
   if (c.env?.MEDIA_BUCKET) {
     mediaEngine = 'cloudflare_r2'
+  } else if (c.env?.DB_SHARD_8) {
+    mediaEngine = 'd1_shard_8'
   } else if (c.env?.DB_SHARD_9) {
     mediaEngine = 'd1_shard_9'
   }
