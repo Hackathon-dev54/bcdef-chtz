@@ -1,0 +1,1003 @@
+import React, { useState, useEffect } from 'react'
+import {
+  X,
+  User,
+  Store,
+  Shield,
+  KeyRound,
+  QrCode,
+  Copy,
+  Check,
+  RefreshCw,
+  Sparkles,
+  Globe,
+  Bell,
+  Lock,
+  Layers,
+  Save,
+  CheckCircle2,
+  AlertCircle,
+  ExternalLink,
+  Download,
+} from 'lucide-react'
+import { getHubStoreUrl } from '../lib/hubConfig'
+
+export interface ProfileData {
+  displayName: string
+  handle: string
+  accountType: 'personal' | 'business'
+  bio: string
+  businessCategory: string
+  privacyMode: 'open' | 'pin_only' | 'closed'
+  friendPin: string
+  inquiryLetterboxEnabled: boolean
+  instanceUrl: string
+}
+
+interface ProfileSettingsModalProps {
+  isOpen: boolean
+  onClose: () => void
+  currentUser: { id: string; handle: string; display_name: string; role?: string }
+  onProfileUpdated?: (updated: { displayName: string; accountType: 'personal' | 'business' }) => void
+}
+
+const BUSINESS_CATEGORIES = [
+  'General & Personal Shop',
+  'Clothing, Fashion & Apparel',
+  'Restaurant, Cafe & Bakery',
+  'Electronics, Mobiles & Tech',
+  'Grocery, Kirana & Organics',
+  'Handicrafts, Art & Culture',
+  'Services, Freelance & Agency',
+  'Hotel, Travel & Tourism',
+]
+
+export function ProfileSettingsModal({
+  isOpen,
+  onClose,
+  currentUser,
+  onProfileUpdated,
+}: ProfileSettingsModalProps) {
+  const [activeTab, setActiveTab] = useState<'account' | 'privacy' | 'hub' | 'edge'>('account')
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [saveSuccess, setSaveSuccess] = useState(false)
+  const [errorMsg, setErrorMsg] = useState('')
+
+  // Profile Form State
+  const [displayName, setDisplayName] = useState(currentUser.display_name || '')
+  const [handle, setHandle] = useState(currentUser.handle || 'admin')
+  const [accountType, setAccountType] = useState<'personal' | 'business'>('personal')
+  const [bio, setBio] = useState('')
+  const [businessCategory, setBusinessCategory] = useState('General & Personal Shop')
+  const [businessPhone, setBusinessPhone] = useState('')
+  const [businessLocation, setBusinessLocation] = useState('Kathmandu, Nepal')
+  const [businessHours, setBusinessHours] = useState('Sun - Fri: 10:00 AM - 7:00 PM')
+  const [deliveryInfo, setDeliveryInfo] = useState('All Nepal Courier & Inside Valley Delivery')
+  const [catalogTags, setCatalogTags] = useState('Retail, Wholesale, Custom Orders, Cash on Delivery')
+  const [privacyMode, setPrivacyMode] = useState<'open' | 'pin_only' | 'closed'>('open')
+  const [friendPin, setFriendPin] = useState('')
+  const [inquiryLetterboxEnabled, setInquiryLetterboxEnabled] = useState(true)
+  const [hubListed, setHubListed] = useState(true)
+  const [hubNodeId, setHubNodeId] = useState('')
+  const [syncingHub, setSyncingHub] = useState(false)
+  const [hubSyncSuccess, setHubSyncSuccess] = useState('')
+  const [hubSyncError, setHubSyncError] = useState('')
+  const [instanceUrl, setInstanceUrl] = useState('')
+
+  // Copy feedbacks
+  const [copiedLink, setCopiedLink] = useState(false)
+  const [copiedPin, setCopiedPin] = useState(false)
+  const [copiedEmbedUrl, setCopiedEmbedUrl] = useState(false)
+  const [regeneratingPin, setRegeneratingPin] = useState(false)
+
+  useEffect(() => {
+    if (!isOpen) return
+
+    async function fetchProfile() {
+      setLoading(true)
+      setErrorMsg('')
+      try {
+        const res = await fetch('/api/profile')
+        if (res.ok) {
+          const data = await res.json()
+          if (data.profile) {
+            setDisplayName(data.profile.displayName || currentUser.display_name)
+            setHandle(data.profile.handle || currentUser.handle)
+            setAccountType(data.profile.accountType || 'personal')
+            setBio(data.profile.bio || '')
+            setBusinessCategory(data.profile.businessCategory || 'General & Personal Shop')
+            setBusinessPhone(data.profile.businessPhone || '')
+            setBusinessLocation(data.profile.businessLocation || 'Kathmandu, Nepal')
+            setBusinessHours(data.profile.businessHours || 'Sun - Fri: 10:00 AM - 7:00 PM')
+            setDeliveryInfo(data.profile.deliveryInfo || 'All Nepal Courier & Inside Valley Delivery')
+            setCatalogTags(data.profile.catalogTags || 'Retail, Wholesale, Custom Orders, Cash on Delivery')
+            setPrivacyMode(data.profile.privacyMode || 'pin_only')
+            setFriendPin(data.profile.friendPin || '')
+            setInquiryLetterboxEnabled(data.profile.inquiryLetterboxEnabled !== false)
+            setHubListed(data.profile.hubListed !== false)
+            setHubNodeId(data.profile.hubNodeId || '')
+            setInstanceUrl(data.profile.instanceUrl || window.location.origin)
+          }
+        }
+      } catch (err: any) {
+        console.warn('Profile fetch warning', err?.message)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchProfile()
+  }, [isOpen, currentUser])
+
+  const handleSyncToHub = async () => {
+    setSyncingHub(true)
+    setHubSyncSuccess('')
+    setHubSyncError('')
+    try {
+      const cleanHandle = handle.replace(/^@/, '').trim().toLowerCase()
+      const embedUrl = `${instanceUrl || window.location.origin}/letterbox?shop=${cleanHandle}`
+      const res = await fetch('/api/hub/merchants/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          handle: cleanHandle,
+          business_name: displayName.trim() || cleanHandle,
+          category: businessCategory,
+          city: businessLocation.split(',')[0].trim() || 'Kathmandu',
+          address: businessLocation,
+          bio: bio.trim(),
+          tags: catalogTags,
+          phone_whatsapp_optional: businessPhone.trim(),
+          letterbox_embed_url: embedUrl,
+        }),
+      })
+
+      const data = await res.json()
+      if (res.ok && data.success) {
+        setHubSyncSuccess('Store listed & synced successfully into the Chatze Hub Directory!')
+        setHubListed(true)
+        // Also persist hub_listed = true locally
+        await fetch('/api/profile', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            displayName: displayName.trim(),
+            accountType,
+            bio: bio.trim(),
+            businessCategory,
+            businessPhone: businessPhone.trim(),
+            businessLocation: businessLocation.trim(),
+            businessHours: businessHours.trim(),
+            deliveryInfo: deliveryInfo.trim(),
+            catalogTags: catalogTags.trim(),
+            privacyMode: accountType === 'business' ? 'pin_only' : privacyMode,
+            friendPin,
+            inquiryLetterboxEnabled,
+            hubListed: true,
+          }),
+        })
+      } else {
+        setHubSyncError(data.error || 'Failed to register with Chatze Hub')
+      }
+    } catch (err: any) {
+      setHubSyncError(err?.message || 'Network error syncing to Hub')
+    } finally {
+      setSyncingHub(false)
+    }
+  }
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setSaving(true)
+    setErrorMsg('')
+    setSaveSuccess(false)
+
+    try {
+      const res = await fetch('/api/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          displayName: displayName.trim(),
+          accountType,
+          bio: bio.trim(),
+          businessCategory,
+          businessPhone: businessPhone.trim(),
+          businessLocation: businessLocation.trim(),
+          businessHours: businessHours.trim(),
+          deliveryInfo: deliveryInfo.trim(),
+          catalogTags: catalogTags.trim(),
+          privacyMode: accountType === 'business' ? 'pin_only' : privacyMode,
+          friendPin,
+          inquiryLetterboxEnabled,
+          hubListed,
+        }),
+      })
+
+      const data = await res.json()
+      if (res.ok && data.success) {
+        setSaveSuccess(true)
+        if (onProfileUpdated) {
+          onProfileUpdated({
+            displayName: data.profile.displayName,
+            accountType: data.profile.accountType,
+          })
+        }
+        setTimeout(() => setSaveSuccess(false), 3000)
+      } else {
+        setErrorMsg(data.error || 'Failed to save settings')
+      }
+    } catch (err: any) {
+      setErrorMsg(err?.message || 'Network error while saving')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleRegeneratePin = async () => {
+    setRegeneratingPin(true)
+    try {
+      const res = await fetch('/api/profile/pin/regenerate', { method: 'POST' })
+      const data = await res.json()
+      if (res.ok && data.friendPin) {
+        setFriendPin(data.friendPin)
+      }
+    } catch {}
+    setRegeneratingPin(false)
+  }
+
+  const inviteLink = `${instanceUrl || window.location.origin}/?add=@${handle}&pin=${friendPin}`
+  const shopInquiryLink = `${instanceUrl || window.location.origin}/shop/@${handle}`
+
+  const copyToClipboard = (text: string, type: 'link' | 'pin') => {
+    navigator.clipboard.writeText(text).then(() => {
+      if (type === 'link') {
+        setCopiedLink(true)
+        setTimeout(() => setCopiedLink(false), 2000)
+      } else {
+        setCopiedPin(true)
+        setTimeout(() => setCopiedPin(false), 2000)
+      }
+    })
+  }
+
+  if (!isOpen) return null
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/75 backdrop-blur-sm animate-fade-in font-sans">
+      <div className="w-full max-w-xl bg-[#111b21] border border-[#202c33] rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+        {/* Modal Top Header */}
+        <div className="p-4 bg-[#202c33]/60 border-b border-[#202c33] flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-[#00a884]/20 border border-[#00a884]/30 flex items-center justify-center text-[#00a884]">
+              {accountType === 'business' ? <Store className="w-5 h-5" /> : <User className="w-5 h-5" />}
+            </div>
+            <div>
+              <h2 className="text-sm font-bold text-[#e9edef] leading-tight">Profile & Account Settings</h2>
+              <p className="text-[11px] text-[#8696a0]">Customize your profile, account type & anti-spam privacy</p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded-lg text-[#8696a0] hover:text-[#e9edef] hover:bg-[#202c33] transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Tab Switcher */}
+        <div className="flex border-b border-[#202c33] bg-[#0b141a]/60 px-4 pt-2 gap-2 shrink-0 text-xs">
+          <button
+            onClick={() => setActiveTab('account')}
+            className={`pb-2.5 px-3 font-semibold border-b-2 transition-all flex items-center gap-1.5 ${
+              activeTab === 'account'
+                ? 'border-[#00a884] text-[#00a884]'
+                : 'border-transparent text-[#8696a0] hover:text-[#e9edef]'
+            }`}
+          >
+            <User className="w-3.5 h-3.5" /> Identity & Profile
+          </button>
+          <button
+            onClick={() => setActiveTab('privacy')}
+            className={`pb-2.5 px-3 font-semibold border-b-2 transition-all flex items-center gap-1.5 ${
+              activeTab === 'privacy'
+                ? 'border-[#00a884] text-[#00a884]'
+                : 'border-transparent text-[#8696a0] hover:text-[#e9edef]'
+            }`}
+          >
+            <Shield className="w-3.5 h-3.5" /> Privacy & Anti-Spam
+          </button>
+          <button
+            onClick={() => setActiveTab('hub')}
+            className={`pb-2.5 px-3 font-semibold border-b-2 transition-all flex items-center gap-1.5 ${
+              activeTab === 'hub'
+                ? 'border-[#00a884] text-[#00a884]'
+                : 'border-transparent text-[#8696a0] hover:text-[#e9edef]'
+            }`}
+          >
+            <Store className="w-3.5 h-3.5 text-amber-400" /> Chatze Hub
+          </button>
+          <button
+            onClick={() => setActiveTab('edge')}
+            className={`pb-2.5 px-3 font-semibold border-b-2 transition-all flex items-center gap-1.5 ${
+              activeTab === 'edge'
+                ? 'border-[#00a884] text-[#00a884]'
+                : 'border-transparent text-[#8696a0] hover:text-[#e9edef]'
+            }`}
+          >
+            <Globe className="w-3.5 h-3.5" /> Edge & Node Info
+          </button>
+        </div>
+
+        {/* Tab Body */}
+        <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
+          {loading ? (
+            <div className="py-12 flex flex-col items-center justify-center text-xs text-[#8696a0] gap-2">
+              <div className="w-6 h-6 border-2 border-[#00a884] border-t-transparent rounded-full animate-spin"></div>
+              <span>Loading your profile settings...</span>
+            </div>
+          ) : (
+            <form id="profile-form" onSubmit={handleSave} className="space-y-4">
+              {/* TAB 1: IDENTITY & PROFILE */}
+              {activeTab === 'account' && (
+                <div className="space-y-4 text-xs">
+                  {/* Account Type Selector Card */}
+                  <div className="p-3.5 bg-[#0b141a] border border-[#202c33] rounded-xl space-y-3">
+                    <label className="font-bold text-[#e9edef] block text-[11px] uppercase tracking-wider text-[#8696a0]">
+                      Account Type (Nepal First Mode)
+                    </label>
+                    <div className="grid grid-cols-2 gap-2.5">
+                      <button
+                        type="button"
+                        onClick={() => setAccountType('personal')}
+                        className={`p-3 rounded-xl border text-left transition-all flex flex-col gap-1.5 ${
+                          accountType === 'personal'
+                            ? 'bg-[#00a884]/15 border-[#00a884] text-[#e9edef]'
+                            : 'bg-[#111b21] border-[#202c33] text-[#8696a0] hover:border-[#8696a0]/50'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-xs flex items-center gap-1.5 text-[#e9edef]">
+                            <User className="w-3.5 h-3.5 text-[#00a884]" /> Personal Account
+                          </span>
+                          {accountType === 'personal' && <Check className="w-3.5 h-3.5 text-[#00a884]" />}
+                        </div>
+                        <p className="text-[10px] text-[#8696a0] leading-snug">
+                          For individual chatting, friends & family. Protected with private Friend PIN.
+                        </p>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setAccountType('business')}
+                        className={`p-3 rounded-xl border text-left transition-all flex flex-col gap-1.5 ${
+                          accountType === 'business'
+                            ? 'bg-amber-500/15 border-amber-500 text-[#e9edef]'
+                            : 'bg-[#111b21] border-[#202c33] text-[#8696a0] hover:border-[#8696a0]/50'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-xs flex items-center gap-1.5 text-[#e9edef]">
+                            <Store className="w-3.5 h-3.5 text-amber-400" /> Business / Shop
+                          </span>
+                          {accountType === 'business' && <Check className="w-3.5 h-3.5 text-amber-400" />}
+                        </div>
+                        <p className="text-[10px] text-[#8696a0] leading-snug">
+                          For pasals, brands & freelancers. Activates customer inquiry letterbox.
+                        </p>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Display Name */}
+                  <div className="space-y-1.5">
+                    <label className="font-semibold text-[#8696a0]">
+                      {accountType === 'business' ? 'Shop / Brand Name' : 'Your Display Name'}
+                    </label>
+                    <input
+                      type="text"
+                      value={displayName}
+                      onChange={(e) => setDisplayName(e.target.value)}
+                      placeholder={accountType === 'business' ? 'e.g. Kathmandu Threads' : 'e.g. Aarav Sharma'}
+                      required
+                      className="w-full px-3 py-2 bg-[#0b141a] border border-[#202c33] rounded-xl text-xs text-[#e9edef] placeholder-[#8696a0]/60 focus:outline-none focus:border-[#00a884]"
+                    />
+                  </div>
+
+                  {/* Handle (Read-only instance handle) */}
+                  <div className="space-y-1.5">
+                    <label className="font-semibold text-[#8696a0]">Handle (@Username)</label>
+                    <div className="flex items-center px-3 py-2 bg-[#0b141a]/60 border border-[#202c33] rounded-xl text-xs text-[#8696a0]">
+                      <span className="text-[#00a884] font-bold mr-1">@</span>
+                      <span>{handle}</span>
+                      <span className="ml-auto text-[10px] bg-[#202c33] px-2 py-0.5 rounded text-[#8696a0]">
+                        Primary Admin
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Business Details (Only when business) */}
+                  {accountType === 'business' && (
+                    <>
+                      <div className="space-y-1.5">
+                        <label className="font-semibold text-amber-400">Business Category</label>
+                        <select
+                          value={businessCategory}
+                          onChange={(e) => setBusinessCategory(e.target.value)}
+                          className="w-full px-3 py-2 bg-[#0b141a] border border-[#202c33] rounded-xl text-xs text-[#e9edef] focus:outline-none focus:border-amber-400"
+                        >
+                          {BUSINESS_CATEGORIES.map((cat) => (
+                            <option key={cat} value={cat} className="bg-[#111b21] text-[#e9edef]">
+                              {cat}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2.5">
+                        <div className="space-y-1.5">
+                          <label className="font-semibold text-[#8696a0]">City / Location</label>
+                          <input
+                            type="text"
+                            value={businessLocation}
+                            onChange={(e) => setBusinessLocation(e.target.value)}
+                            placeholder="e.g. Thamel, Kathmandu"
+                            className="w-full px-3 py-2 bg-[#0b141a] border border-[#202c33] rounded-xl text-xs text-[#e9edef] placeholder-[#8696a0]/60 focus:outline-none focus:border-[#00a884]"
+                          />
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <label className="font-semibold text-[#8696a0]">Contact Phone / WhatsApp</label>
+                          <input
+                            type="text"
+                            value={businessPhone}
+                            onChange={(e) => setBusinessPhone(e.target.value)}
+                            placeholder="e.g. 9841XXXXXX"
+                            className="w-full px-3 py-2 bg-[#0b141a] border border-[#202c33] rounded-xl text-xs text-[#e9edef] placeholder-[#8696a0]/60 focus:outline-none focus:border-[#00a884]"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2.5">
+                        <div className="space-y-1.5">
+                          <label className="font-semibold text-[#8696a0]">Working Hours</label>
+                          <input
+                            type="text"
+                            value={businessHours}
+                            onChange={(e) => setBusinessHours(e.target.value)}
+                            placeholder="e.g. Sun - Fri: 10 AM - 7 PM"
+                            className="w-full px-3 py-2 bg-[#0b141a] border border-[#202c33] rounded-xl text-xs text-[#e9edef] placeholder-[#8696a0]/60 focus:outline-none focus:border-[#00a884]"
+                          />
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <label className="font-semibold text-[#8696a0]">Delivery Coverage</label>
+                          <input
+                            type="text"
+                            value={deliveryInfo}
+                            onChange={(e) => setDeliveryInfo(e.target.value)}
+                            placeholder="e.g. All Nepal Courier & Valley"
+                            className="w-full px-3 py-2 bg-[#0b141a] border border-[#202c33] rounded-xl text-xs text-[#e9edef] placeholder-[#8696a0]/60 focus:outline-none focus:border-[#00a884]"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="font-semibold text-[#8696a0]">Specialties & Tags (Comma Separated)</label>
+                        <input
+                          type="text"
+                          value={catalogTags}
+                          onChange={(e) => setCatalogTags(e.target.value)}
+                          placeholder="e.g. Jackets, Hoodies, Wholesale, Cash on Delivery"
+                          className="w-full px-3 py-2 bg-[#0b141a] border border-[#202c33] rounded-xl text-xs text-[#e9edef] placeholder-[#8696a0]/60 focus:outline-none focus:border-[#00a884]"
+                        />
+                      </div>
+                    </>
+                  )}
+
+                  {/* Bio / Tagline */}
+                  <div className="space-y-1.5">
+                    <label className="font-semibold text-[#8696a0]">
+                      {accountType === 'business' ? 'Shop Description / Customer Note' : 'Bio / Status'}
+                    </label>
+                    <textarea
+                      rows={2}
+                      value={bio}
+                      onChange={(e) => setBio(e.target.value)}
+                      placeholder={
+                        accountType === 'business'
+                          ? 'e.g. Premium streetwear and handicrafts. Delivery all across Nepal (eSewa / COD).'
+                          : 'e.g. Available for coffee in Thamel. Ping me anytime.'
+                      }
+                      className="w-full px-3 py-2 bg-[#0b141a] border border-[#202c33] rounded-xl text-xs text-[#e9edef] placeholder-[#8696a0]/60 focus:outline-none focus:border-[#00a884] resize-none"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 2: PRIVACY & ANTI-SPAM */}
+              {activeTab === 'privacy' && (
+                <div className="space-y-4 text-xs">
+                  {/* Business Notice if in Business mode */}
+                  {accountType === 'business' ? (
+                    <div className="p-3.5 bg-amber-500/10 border border-amber-500/30 rounded-xl space-y-2">
+                      <div className="flex items-center gap-2 text-amber-400 font-bold">
+                        <Shield className="w-4 h-4" />
+                        <span>Business Privacy Protection Active</span>
+                      </div>
+                      <p className="text-[11px] text-[#e9edef]/90 leading-relaxed">
+                        To protect your Cloudflare Worker quota from bot attacks and unwanted spam,
+                        incoming stranger friend requests are <strong>Private Only (PIN-Protected)</strong>.
+                      </p>
+                      <ul className="text-[11px] text-[#8696a0] list-disc list-inside space-y-0.5">
+                        <li>Customers connect with you via your public <strong>Letterbox Portfolio</strong> without friend requests.</li>
+                        <li>You can still manually add any friend as private directly from your dashboard.</li>
+                        <li>Trusted business partners can connect if you give them your Private Friend PIN.</li>
+                      </ul>
+                    </div>
+                  ) : null}
+
+                  {/* Personal Friend PIN Card */}
+                  <div className="p-4 bg-[#0b141a] border border-[#202c33] rounded-xl space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <KeyRound className="w-4 h-4 text-[#00a884]" />
+                        <span className="font-bold text-[#e9edef]">
+                          {accountType === 'business' ? 'Private Business Friend PIN' : 'Personal Friend PIN'}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleRegeneratePin}
+                        disabled={regeneratingPin}
+                        className="flex items-center gap-1 text-[11px] text-[#8696a0] hover:text-[#00a884] transition-colors"
+                      >
+                        <RefreshCw className={`w-3 h-3 ${regeneratingPin ? 'animate-spin' : ''}`} />
+                        <span>Change PIN</span>
+                      </button>
+                    </div>
+
+                    <p className="text-[11px] text-[#8696a0]">
+                      {accountType === 'business'
+                        ? 'Share this PIN only with trusted close partners or suppliers who need a direct 1-on-1 friend channel.'
+                        : 'Give this PIN to friends you trust. When Privacy Mode is set to PIN Only, strangers and bots cannot add you without it.'}
+                    </p>
+
+                    <div className="flex items-center gap-2 p-2.5 bg-[#111b21] border border-[#202c33] rounded-xl">
+                      <span className="font-mono text-base font-extrabold tracking-widest text-[#00a884] pl-2">
+                        {friendPin || 'NP-7429'}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => copyToClipboard(friendPin, 'pin')}
+                        className="ml-auto px-3 py-1 bg-[#202c33] hover:bg-[#2a3942] text-xs font-semibold rounded-lg text-[#e9edef] flex items-center gap-1.5 transition-all"
+                      >
+                        {copiedPin ? <Check className="w-3.5 h-3.5 text-[#00a884]" /> : <Copy className="w-3.5 h-3.5" />}
+                        <span>{copiedPin ? 'Copied' : 'Copy PIN'}</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Privacy Mode Selector (Only configurable if personal) */}
+                  {accountType === 'personal' && (
+                    <div className="space-y-2">
+                      <label className="font-bold text-[#8696a0] block text-[11px] uppercase tracking-wider">
+                        Who Can Send You Friend Requests?
+                      </label>
+                      <div className="space-y-2">
+                        <label
+                          className={`p-3 rounded-xl border flex items-start gap-3 cursor-pointer transition-all ${
+                            privacyMode === 'pin_only'
+                              ? 'bg-[#00a884]/10 border-[#00a884]'
+                              : 'bg-[#0b141a] border-[#202c33] hover:border-[#8696a0]/40'
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="privacyMode"
+                            value="pin_only"
+                            checked={privacyMode === 'pin_only'}
+                            onChange={() => setPrivacyMode('pin_only')}
+                            className="mt-0.5 accent-[#00a884]"
+                          />
+                          <div className="space-y-0.5">
+                            <span className="font-bold text-[#e9edef] block">
+                              🔒 PIN Protected (Recommended for Nepal)
+                            </span>
+                            <span className="text-[11px] text-[#8696a0] block">
+                              Only people who have your PIN or scan your QR code can add you. Blocks 100% of blind bots.
+                            </span>
+                          </div>
+                        </label>
+
+                        <label
+                          className={`p-3 rounded-xl border flex items-start gap-3 cursor-pointer transition-all ${
+                            privacyMode === 'open'
+                              ? 'bg-[#00a884]/10 border-[#00a884]'
+                              : 'bg-[#0b141a] border-[#202c33] hover:border-[#8696a0]/40'
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="privacyMode"
+                            value="open"
+                            checked={privacyMode === 'open'}
+                            onChange={() => setPrivacyMode('open')}
+                            className="mt-0.5 accent-[#00a884]"
+                          />
+                          <div className="space-y-0.5">
+                            <span className="font-bold text-[#e9edef] block">
+                              🌐 Open Federation (Public Search)
+                            </span>
+                            <span className="text-[11px] text-[#8696a0] block">
+                              Anyone who knows your @handle can send a friend request. (Subject to max 5 pending queue cap).
+                            </span>
+                          </div>
+                        </label>
+
+                        <label
+                          className={`p-3 rounded-xl border flex items-start gap-3 cursor-pointer transition-all ${
+                            privacyMode === 'closed'
+                              ? 'bg-[#00a884]/10 border-[#00a884]'
+                              : 'bg-[#0b141a] border-[#202c33] hover:border-[#8696a0]/40'
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="privacyMode"
+                            value="closed"
+                            checked={privacyMode === 'closed'}
+                            onChange={() => setPrivacyMode('closed')}
+                            className="mt-0.5 accent-[#00a884]"
+                          />
+                          <div className="space-y-0.5">
+                            <span className="font-bold text-[#e9edef] block">
+                              🚫 Closed / Incognito
+                            </span>
+                            <span className="text-[11px] text-[#8696a0] block">
+                              Reject all incoming friend requests automatically. You can still send outbound requests.
+                            </span>
+                          </div>
+                        </label>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Business Letterbox Toggle (For business accounts) */}
+                  {accountType === 'business' && (
+                    <div className="p-3.5 bg-amber-500/10 border border-amber-500/20 rounded-xl space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-amber-400">Customer Inquiries Letterbox</span>
+                        <input
+                          type="checkbox"
+                          checked={inquiryLetterboxEnabled}
+                          onChange={(e) => setInquiryLetterboxEnabled(e.target.checked)}
+                          className="w-4 h-4 accent-[#00a884] cursor-pointer"
+                        />
+                      </div>
+                      <p className="text-[11px] text-[#8696a0]">
+                        Allows customers on the internet to drop 1 inquiry note (e.g. asking product prices) into your
+                        queue without ringing your server or sending spam floods.
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Copy Invite / Shop Portfolio Link */}
+                  <div className="p-3 bg-[#0b141a] border border-[#202c33] rounded-xl space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-[#e9edef] block">
+                        {accountType === 'business' ? 'Public Business Portfolio & Letterbox Link' : 'Your Personal Add-Me Link'}
+                      </span>
+                      {accountType === 'business' && (
+                        <a
+                          href="/shop"
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-[11px] text-[#00a884] hover:underline flex items-center gap-1 font-semibold"
+                        >
+                          <span>Preview Landing Page</span>
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        readOnly
+                        value={accountType === 'business' ? `${instanceUrl || window.location.origin}/shop` : inviteLink}
+                        className="flex-1 px-2.5 py-1.5 bg-[#111b21] border border-[#202c33] rounded-lg text-[11px] text-[#8696a0] font-mono select-all"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => copyToClipboard(accountType === 'business' ? `${instanceUrl || window.location.origin}/shop` : inviteLink, 'link')}
+                        className="px-3 py-1.5 bg-[#00a884] hover:bg-[#02906f] text-[#111b21] font-bold rounded-lg text-xs flex items-center gap-1 shrink-0"
+                      >
+                        {copiedLink ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                        <span>{copiedLink ? 'Copied' : 'Copy'}</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 3: CHATZE HUB DIRECTORY INTEGRATION */}
+              {activeTab === 'hub' && (
+                <div className="space-y-4 text-xs">
+                  {/* Status Banner */}
+                  <div className={`p-3.5 rounded-xl border space-y-2 ${
+                    hubListed
+                      ? 'bg-[#00a884]/10 border-[#00a884]/30 text-[#e9edef]'
+                      : 'bg-amber-500/10 border-amber-500/30 text-amber-200'
+                  }`}>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Store className={`w-4 h-4 ${hubListed ? 'text-[#00a884]' : 'text-amber-400'}`} />
+                        <span className="font-bold">
+                          Chatze Hub Status: {hubListed ? 'Active & Listed' : 'Unlisted (404 for Visitors)'}
+                        </span>
+                      </div>
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold ${
+                        hubListed ? 'bg-[#00a884]/20 text-[#00a884]' : 'bg-amber-500/20 text-amber-400'
+                      }`}>
+                        {hubListed ? '🟢 DIRECTORY ACTIVE' : '⚪ UNLISTED'}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-[#8696a0] leading-relaxed">
+                      {hubListed
+                        ? 'Your Letterbox is active in the Nepal Discovery Directory. Consumers can discover your store and send spam-protected inquiries via Google Sign-In.'
+                        : 'Your Letterbox is unlisted. Visitors attempting to open or embed your Letterbox will receive a 404 Access Restricted notice.'}
+                    </p>
+                  </div>
+
+                  {/* Hub Listing Toggle */}
+                  <div className="p-3.5 bg-[#0b141a] border border-[#202c33] rounded-xl space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-[#e9edef]">Enable Listing on Chatze Hub</span>
+                      <input
+                        type="checkbox"
+                        checked={hubListed}
+                        onChange={(e) => setHubListed(e.target.checked)}
+                        className="w-4 h-4 accent-[#00a884] cursor-pointer"
+                      />
+                    </div>
+                    <p className="text-[11px] text-[#8696a0]">
+                      If disabled, all inbound customer inquiries to this node are restricted and return 404.
+                    </p>
+                  </div>
+
+                  {/* 1-Click Sync to Hub Button */}
+                  <div className="p-3.5 bg-[#182229] border border-[#202c33] rounded-xl space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <span className="font-bold text-[#e9edef] block">1-Click Publish to Hub</span>
+                        <span className="text-[11px] text-[#8696a0]">
+                          Publish or update your store name, tags, and embed link in the Hub directory
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleSyncToHub}
+                        disabled={syncingHub}
+                        className="px-3.5 py-2 bg-[#00a884] hover:bg-[#02906f] text-[#111b21] font-bold rounded-xl text-xs flex items-center gap-1.5 transition-all shadow-md cursor-pointer disabled:opacity-50 shrink-0"
+                      >
+                        {syncingHub ? (
+                          <>
+                            <div className="w-3.5 h-3.5 border-2 border-[#111b21] border-t-transparent rounded-full animate-spin" />
+                            <span>Syncing...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles className="w-3.5 h-3.5" />
+                            <span>Publish to Hub</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+
+                    {hubSyncSuccess && (
+                      <div className="p-2.5 bg-emerald-950/40 border border-emerald-800/50 rounded-xl text-emerald-300 text-xs flex items-center gap-2">
+                        <CheckCircle2 className="w-4 h-4 shrink-0" />
+                        <span>{hubSyncSuccess}</span>
+                      </div>
+                    )}
+
+                    {hubSyncError && (
+                      <div className="p-2.5 bg-red-950/40 border border-red-800/50 rounded-xl text-red-300 text-xs flex items-center gap-2">
+                        <AlertCircle className="w-4 h-4 shrink-0" />
+                        <span>{hubSyncError}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Protected Embed Link */}
+                  <div className="p-3.5 bg-[#0b141a] border border-[#202c33] rounded-xl space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-[#e9edef] flex items-center gap-1.5">
+                        <Lock className="w-3.5 h-3.5 text-[#00a884]" />
+                        <span>Sovereign Letterbox Embed URL</span>
+                      </span>
+                      <a
+                        href={getHubStoreUrl(handle)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-[11px] text-[#00a884] hover:underline flex items-center gap-1 font-semibold"
+                      >
+                        <span>Preview in Hub</span>
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    </div>
+                    <p className="text-[10px] text-[#8696a0]">
+                      This URL is protected: it cannot be opened in naked browser tabs (automatically redirects to Hub). It only renders when embedded inside Chatze Hub.
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        readOnly
+                        value={`${instanceUrl || window.location.origin}/letterbox?shop=${handle}`}
+                        className="flex-1 px-2.5 py-1.5 bg-[#111b21] border border-[#202c33] rounded-lg text-[11px] text-[#8696a0] font-mono select-all"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const url = `${instanceUrl || window.location.origin}/letterbox?shop=${handle}`
+                          navigator.clipboard.writeText(url)
+                          setCopiedEmbedUrl(true)
+                          setTimeout(() => setCopiedEmbedUrl(false), 2000)
+                        }}
+                        className="px-3 py-1.5 bg-[#202c33] hover:bg-[#2a3942] text-[#e9edef] font-semibold rounded-lg text-xs flex items-center gap-1 shrink-0 cursor-pointer"
+                      >
+                        {copiedEmbedUrl ? <Check className="w-3.5 h-3.5 text-[#00a884]" /> : <Copy className="w-3.5 h-3.5" />}
+                        <span>{copiedEmbedUrl ? 'Copied' : 'Copy'}</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Tier 2 Cryptographic Protocol Handshake Info */}
+                  <div className="p-3 bg-[#111b21] border border-[#202c33] rounded-xl space-y-2 text-[11px]">
+                    <div className="flex items-center justify-between text-[#8696a0]">
+                      <span className="font-semibold text-white">Tier 2 Protocol Discovery:</span>
+                      <span className="text-[#00a884] font-mono font-bold">chatze-letterbox-v1</span>
+                    </div>
+                    <div className="flex items-center justify-between text-[#8696a0]">
+                      <span>Well-Known Endpoint:</span>
+                      <a
+                        href="/.well-known/chatze-node.json"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-[#00a884] font-mono hover:underline flex items-center gap-1"
+                      >
+                        <span>/.well-known/chatze-node.json</span>
+                        <ExternalLink className="w-2.5 h-2.5" />
+                      </a>
+                    </div>
+                    <div className="flex items-center justify-between text-[#8696a0]">
+                      <span>Cryptographic Key:</span>
+                      <span className="font-mono text-[#8696a0]">ECDSA P-256 (Ed25519 compatible)</span>
+                    </div>
+                  </div>
+
+                  {/* Standalone Chatze Hub Codebase Download */}
+                  <div className="p-3 bg-gradient-to-r from-[#182229] to-[#111b21] border border-[#2a3942] rounded-xl flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-white font-semibold text-xs flex items-center gap-1.5">
+                        <Store className="w-3.5 h-3.5 text-[#00a884]" />
+                        <span>Chatze Hub Project Codebase</span>
+                      </p>
+                      <p className="text-[#8696a0] text-[10px] mt-0.5 truncate">
+                        Self-contained Cloudflare D1 + Hono + Vite gateway ready for deployment
+                      </p>
+                    </div>
+                    <a
+                      href="/chatze-hub.zip"
+                      download="chatze-hub.zip"
+                      className="px-3 py-1.5 bg-[#00a884] hover:bg-[#02906f] text-[#111b21] font-bold text-xs rounded-lg flex items-center gap-1.5 shrink-0 transition-colors shadow-sm"
+                      title="Download chatze-hub.zip"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      <span>Download .zip</span>
+                    </a>
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 4: EDGE CLOUD & NODE INFO */}
+              {activeTab === 'edge' && (
+                <div className="space-y-3 text-xs">
+                  <div className="p-3.5 bg-[#0b141a] border border-[#202c33] rounded-xl space-y-2.5">
+                    <span className="font-bold text-[#e9edef] block text-[11px] uppercase tracking-wider text-[#8696a0]">
+                      Cloudflare Edge Status
+                    </span>
+                    <div className="space-y-2 text-[11px]">
+                      <div className="flex items-center justify-between py-1 border-b border-[#202c33]/40">
+                        <span className="text-[#8696a0]">Edge PoP Region:</span>
+                        <span className="font-semibold text-[#00a884] flex items-center gap-1.5">
+                          <span className="w-2 h-2 rounded-full bg-[#00a884] animate-pulse"></span>
+                          Kathmandu (KTM) / Edge Network
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between py-1 border-b border-[#202c33]/40">
+                        <span className="text-[#8696a0]">D1 SQLite Database:</span>
+                        <span className="font-semibold text-[#e9edef]">Active (5 GB Edge Native)</span>
+                      </div>
+                      <div className="flex items-center justify-between py-1 border-b border-[#202c33]/40">
+                        <span className="text-[#8696a0]">WebPush VAPID Keypair:</span>
+                        <span className="font-semibold text-[#00a884]">P-256 Verified in .env</span>
+                      </div>
+                      <div className="flex items-center justify-between py-1 border-b border-[#202c33]/40">
+                        <span className="text-[#8696a0]">Daily Worker Quota:</span>
+                        <span className="font-semibold text-[#e9edef]">100,000 Free Invocations/Day</span>
+                      </div>
+                      <div className="flex items-center justify-between py-1">
+                        <span className="text-[#8696a0]">Anti-Spam Security Shield:</span>
+                        <span className="font-semibold text-[#00a884]">Active (eTLD+1 Root Protection)</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-3 bg-[#00a884]/10 border border-[#00a884]/20 rounded-xl space-y-1 text-[11px] text-[#e9edef]">
+                    <span className="font-bold flex items-center gap-1 text-[#00a884]">
+                      <CheckCircle2 className="w-3.5 h-3.5" /> 100% Data Sovereignty
+                    </span>
+                    <p className="text-[#8696a0] leading-relaxed">
+                      Your messages, contacts, and images stay completely inside your private Cloudflare D1 database.
+                      No central company can read or sell your chat history.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Status Message */}
+              {errorMsg && (
+                <div className="p-2.5 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-400 text-xs flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{errorMsg}</span>
+                </div>
+              )}
+
+              {saveSuccess && (
+                <div className="p-2.5 bg-[#00a884]/15 border border-[#00a884]/30 rounded-xl text-[#00a884] text-xs flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 shrink-0" />
+                  <span>Settings saved successfully!</span>
+                </div>
+              )}
+            </form>
+          )}
+        </div>
+
+        {/* Modal Footer */}
+        <div className="p-3.5 bg-[#202c33]/60 border-t border-[#202c33] flex items-center justify-between shrink-0">
+          <span className="text-[11px] text-[#8696a0]">
+            Mode: <strong className="text-[#e9edef] capitalize">{accountType}</strong>
+          </span>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-3.5 py-1.5 bg-[#202c33] hover:bg-[#2a3942] text-[#8696a0] hover:text-[#e9edef] rounded-xl text-xs font-semibold transition-all cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              form="profile-form"
+              disabled={saving || loading}
+              className="px-4 py-1.5 bg-[#00a884] hover:bg-[#02906f] text-[#111b21] rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-md shadow-[#00a884]/20 cursor-pointer disabled:opacity-50"
+            >
+              {saving ? (
+                <>
+                  <div className="w-3.5 h-3.5 border-2 border-[#111b21] border-t-transparent rounded-full animate-spin"></div>
+                  <span>Saving...</span>
+                </>
+              ) : (
+                <>
+                  <Save className="w-3.5 h-3.5" />
+                  <span>Save Changes</span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}

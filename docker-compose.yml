@@ -1,0 +1,50 @@
+# SPDX-License-Identifier: Elastic-2.0
+# Chatze 1-Click Universal Docker Compose Setup
+# Deploy on DigitalOcean ($4/mo Droplet Bangalore), Hetzner, or Oracle Cloud Free Tier.
+
+version: '3.8'
+
+services:
+  # Chatze Sovereign Node Engine
+  chatze-node:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: chatze-sovereign-node
+    restart: always
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+    volumes:
+      # Persistent local database & media storage volume
+      - chatze_data:/data
+    networks:
+      - chatze-net
+    expose:
+      - "3000"
+
+  # Automatic Let's Encrypt HTTPS Reverse Proxy (Caddy)
+  caddy:
+    image: caddy:2-alpine
+    container_name: chatze-caddy-proxy
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - chatze-net
+    depends_on:
+      - chatze-node
+
+volumes:
+  chatze_data:
+  caddy_data:
+  caddy_config:
+
+networks:
+  chatze-net:
+    driver: bridge

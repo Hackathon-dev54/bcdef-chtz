@@ -1,0 +1,64 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "chatze-np-9b4q2m",
+  "main": "src/server/index.ts",
+  "compatibility_date": "2024-09-23",
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "chatze_db"
+    }
+    // ---------------------------------------------------------------------------
+    // Optional 10-Database Sharding (Unlocks 4.5 GB / 20M+ Messages for $0/mo):
+    // Run: npx wrangler d1 create chatze_core
+    //      npx wrangler d1 create chatze_shard_1 ... chatze_shard_9
+    // { "binding": "DB_CORE", "database_name": "chatze_core" },
+    // { "binding": "DB_SHARD_1", "database_name": "chatze_shard_1" },
+    // { "binding": "DB_SHARD_2", "database_name": "chatze_shard_2" },
+    // { "binding": "DB_SHARD_3", "database_name": "chatze_shard_3" },
+    // { "binding": "DB_SHARD_4", "database_name": "chatze_shard_4" },
+    // { "binding": "DB_SHARD_5", "database_name": "chatze_shard_5" },
+    // { "binding": "DB_SHARD_6", "database_name": "chatze_shard_6" },
+    // { "binding": "DB_SHARD_7", "database_name": "chatze_shard_7" },
+    // { "binding": "DB_SHARD_8", "database_name": "chatze_shard_8" },
+    // { "binding": "DB_SHARD_9", "database_name": "chatze_shard_9" }
+    // ---------------------------------------------------------------------------
+  ],
+  // Optional Cloudflare R2 Bucket (Auto-detected; falls back to Shard 9 without credit card)
+  // "r2_buckets": [
+  //   { "binding": "MEDIA_BUCKET", "bucket_name": "chatze-media" }
+  // ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "REALTIME_ROOM",
+        "class_name": "RealtimeBroadcaster"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": [
+        "RealtimeBroadcaster"
+      ]
+    }
+  ],
+  "triggers": {
+    "crons": [
+      "0 3 * * *"
+    ]
+  },
+  "vars": {
+    "NODE_ENV": "production"
+  },
+  "assets": {
+    "directory": "dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": false
+  }
+}

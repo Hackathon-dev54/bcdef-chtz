@@ -1,0 +1,17 @@
+# Caddyfile: Automatic Let's Encrypt SSL & Reverse Proxy for Chatze Sovereign Node
+# Replace :80 with your custom domain (e.g., chat.yourstore.com.np) to enable automatic SSL!
+
+:80 {
+    reverse_proxy chatze-node:3000
+
+    # Security Headers
+    header {
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "SAMEORIGIN"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+    }
+
+    # Enable Gzip and Zstandard compression
+    encode gzip zstd
+}

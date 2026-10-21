@@ -1,0 +1,29 @@
+# Build & Dependencies
+node_modules/
+dist/
+.next/
+.wrangler/
+.env
+.env*.local
+
+# Hub Subproject & Features To Add
+chatze-hub/
+features-toadd/
+
+# System Design & Documentation Markdown Files
+*.md
+!README.md
+
+# OS & Editor Files
+.DS_Store
+Thumbs.db
+bun.lock
+bun.lockb
+
+# Sandbox internal files
+__v0_runtime_loader.js
+__v0_devtools.tsx
+__v0_jsx-dev-runtime.ts
+.snowflake/
+.v0-trash/
+.vercel/
