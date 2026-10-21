@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import {
   ArrowLeft,
+  Menu,
   User,
   Store,
   Shield,
@@ -439,22 +440,23 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
         } flex-1 flex-col h-full bg-zinc-50/50 dark:bg-[#0e0e10] overflow-hidden min-w-0 transition-colors`}
       >
         {/* Sticky Action Header */}
-        <header className="h-16 px-6 sm:px-10 border-b border-zinc-200 dark:border-zinc-800/80 bg-white/80 dark:bg-[#121214]/80 backdrop-blur-md flex items-center justify-between shrink-0 transition-colors">
-          <div className="flex items-center gap-3">
-            {/* Mobile return to Settings sidebar */}
+        <header className="h-16 px-4 sm:px-10 border-b border-zinc-200 dark:border-zinc-800/80 bg-white/80 dark:bg-[#121214]/80 backdrop-blur-md flex items-center justify-between shrink-0 transition-colors">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+            {/* Mobile open Settings Menu (Hamburger) */}
             <button
               type="button"
               onClick={() => setMobileView('sidebar')}
-              className="md:hidden p-2 rounded-xl text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
-              title="View all settings"
+              className="md:hidden p-2 -ml-1 rounded-xl text-zinc-600 hover:text-zinc-950 dark:text-zinc-300 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer flex items-center justify-center shrink-0"
+              title="Open Settings Menu"
+              aria-label="Open Settings Menu"
             >
-              <ArrowLeft className="w-4 h-4" />
+              <Menu className="w-5 h-5" />
             </button>
-            <div>
-              <h2 className="text-base sm:text-lg font-bold text-zinc-900 dark:text-zinc-100 tracking-tight flex items-center gap-2">
+            <div className="min-w-0">
+              <h2 className="text-sm sm:text-lg font-bold text-zinc-900 dark:text-zinc-100 tracking-tight flex items-center gap-2 truncate">
                 <span>{activeTabMeta.label}</span>
               </h2>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400 hidden sm:block">
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 hidden sm:block truncate">
                 {activeTabMeta.sublabel}
               </p>
             </div>
