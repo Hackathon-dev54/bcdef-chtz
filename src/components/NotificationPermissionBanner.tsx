@@ -13,10 +13,20 @@ interface NotificationPermissionBannerProps {
 }
 
 export const NotificationPermissionBanner: React.FC<NotificationPermissionBannerProps> = ({ userHandle }) => {
-  const [permission, setPermission] = useState<NotificationPermission | 'unsupported'>('default')
-  const [isSubscribed, setIsSubscribed] = useState(false)
+  const [permission, setPermission] = useState<NotificationPermission | 'unsupported'>(() => {
+    if (typeof window === 'undefined' || !('Notification' in window)) return 'unsupported'
+    return Notification.permission
+  })
+  const [isSubscribed, setIsSubscribed] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false
+    return localStorage.getItem('chatze_push_active') === 'true'
+  })
+  const [dismissed, setDismissed] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return true
+    return localStorage.getItem('chatze_notif_banner_dismissed') === 'true'
+  })
+  const [isMountedAndReady, setIsMountedAndReady] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [dismissed, setDismissed] = useState(false)
   const [showIosModal, setShowIosModal] = useState(false)
   const [testSent, setTestSent] = useState(false)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
@@ -24,21 +34,31 @@ export const NotificationPermissionBanner: React.FC<NotificationPermissionBanner
   useEffect(() => {
     if (typeof window === 'undefined') return
 
-    // Check if dismissed previously in this session
-    if (sessionStorage.getItem('chatze_notif_banner_dismissed') === 'true') {
-      setDismissed(true)
-    }
+    // Delay visibility check by 4s to guarantee 0ms glitch-free reload
+    const timer = setTimeout(() => {
+      setIsMountedAndReady(true)
+    }, 4000)
 
     if (!isPushSupported()) {
       setPermission('unsupported')
-      return
+      return () => clearTimeout(timer)
     }
 
-    setPermission(Notification.permission)
+    const currentPerm = Notification.permission
+    setPermission(currentPerm)
+    if (currentPerm === 'granted') {
+      localStorage.setItem('chatze_push_active', 'true')
+    }
 
     getExistingPushSubscription().then((sub) => {
-      setIsSubscribed(!!sub)
+      const active = !!sub
+      setIsSubscribed(active)
+      if (active) {
+        localStorage.setItem('chatze_push_active', 'true')
+      }
     })
+
+    return () => clearTimeout(timer)
   }, [])
 
   const handleEnable = async () => {
@@ -56,6 +76,8 @@ export const NotificationPermissionBanner: React.FC<NotificationPermissionBanner
     if (res.success) {
       setIsSubscribed(true)
       setPermission('granted')
+      localStorage.setItem('chatze_push_active', 'true')
+      localStorage.setItem('chatze_notif_banner_dismissed', 'true')
     } else {
       setErrorMsg(res.error || 'Failed to activate notifications.')
     }
@@ -69,6 +91,7 @@ export const NotificationPermissionBanner: React.FC<NotificationPermissionBanner
       const regRes = await subscribeToPushNotifications(userHandle)
       if (regRes.success) {
         setIsSubscribed(true)
+        localStorage.setItem('chatze_push_active', 'true')
         res = await sendTestNotification(userHandle)
       } else {
         setErrorMsg(regRes.error || 'Failed to re-register this device with server.')
@@ -87,11 +110,15 @@ export const NotificationPermissionBanner: React.FC<NotificationPermissionBanner
 
   const handleDismiss = () => {
     setDismissed(true)
-    sessionStorage.setItem('chatze_notif_banner_dismissed', 'true')
+    localStorage.setItem('chatze_notif_banner_dismissed', 'true')
   }
 
-  // If dismissed or already granted & subscribed (and not in test mode), hide banner
-  if (dismissed || (permission === 'granted' && isSubscribed && !testSent && !errorMsg)) {
+  // Never render during initial reload or if dismissed, granted, or unsupported
+  if (!isMountedAndReady) {
+    return null
+  }
+
+  if (dismissed || permission === 'granted' || permission === 'denied' || permission === 'unsupported') {
     return null
   }
 

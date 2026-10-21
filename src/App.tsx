@@ -5,6 +5,8 @@ import { AuthScreens } from './components/AuthScreens'
 import { MessagingApp } from './components/MessagingApp'
 import { CustomerInquiryPage } from './components/CustomerInquiryPage'
 
+import { ChatSkeletonShell } from './components/ChatSkeletonShell'
+
 export function App() {
   const [forceLogin, setForceLogin] = useState(false)
 
@@ -131,27 +133,9 @@ export function App() {
     setCurrentUser(null)
   }
 
-  // Modern Minimalist Theme-Aware Splash Loader (Only for fresh browser first-time visits)
+  // Modern Instant Chat Skeleton Shell (Replaces old splash loader with full chat skeleton)
   if (loading && !currentUser) {
-    const isDark = typeof window !== 'undefined' ? localStorage.getItem('chatze_theme') !== 'light' : true
-    return (
-      <div className={`${isDark ? 'dark' : ''} min-h-screen bg-white dark:bg-[#09090b] text-zinc-900 dark:text-zinc-100 flex flex-col items-center justify-center p-4 font-sans select-none transition-colors`}>
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-12 h-12 rounded-2xl bg-zinc-950 text-white dark:bg-white dark:text-zinc-950 flex items-center justify-center font-bold text-lg shadow-sm animate-pulse">
-            <Sparkles className="w-6 h-6" />
-          </div>
-          <div className="flex flex-col items-center gap-1">
-            <span className="font-bold text-base tracking-tight text-zinc-900 dark:text-zinc-100">
-              chatze.
-            </span>
-            <div className="flex items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400">
-              <div className="w-1.5 h-1.5 rounded-full bg-zinc-400 dark:bg-zinc-600 animate-ping" />
-              <span>Connecting to edge node...</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    )
+    return <ChatSkeletonShell />
   }
 
   // Public Customer View for Shop Links

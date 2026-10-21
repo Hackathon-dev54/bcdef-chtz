@@ -238,6 +238,11 @@ export function MessagingApp({
 
   return (
     <div className={`${theme === 'dark' ? 'dark' : ''} flex flex-col h-screen w-full bg-white dark:bg-[#09090b] text-zinc-900 dark:text-zinc-100 overflow-hidden font-sans select-none transition-colors`}>
+      {/* Modern Top Progress Pulse (Shows only during initial background sync) */}
+      {!streamConnected && (
+        <div className="fixed top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-zinc-950 dark:via-zinc-100 to-transparent animate-pulse z-50 pointer-events-none" />
+      )}
+
       {/* 0. Top Full-Width Navbar (Spans 100% of the viewport) */}
       <TopNavbar
         currentUser={currentUser}
