@@ -34,6 +34,7 @@ import {
   PaymentQrModal,
   ImageSendModal,
   ImageLightboxModal,
+  ContactDetailSidebar,
 } from './messaging'
 
 // Re-export utilities so external code importing from MessagingApp continues to work seamlessly
@@ -70,6 +71,54 @@ export function MessagingApp({
   const [showProfileModal, setShowProfileModal] = useState(false)
   const [currentDisplayName, setCurrentDisplayName] = useState(businessName || currentUser.display_name)
   const [copiedLink, setCopiedLink] = useState(false)
+
+  // Minimalist Theme: dark | light (persisted in localStorage)
+  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
+    if (typeof window !== 'undefined') {
+      return (localStorage.getItem('chatze_theme') as 'dark' | 'light') || 'dark'
+    }
+    return 'dark'
+  })
+
+  const toggleTheme = () => {
+    setTheme((prev) => {
+      const next = prev === 'dark' ? 'light' : 'dark'
+      localStorage.setItem('chatze_theme', next)
+      if (typeof document !== 'undefined') {
+        if (next === 'dark') {
+          document.documentElement.classList.add('dark')
+        } else {
+          document.documentElement.classList.remove('dark')
+        }
+      }
+      return next
+    })
+  }
+
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      if (theme === 'dark') {
+        document.documentElement.classList.add('dark')
+      } else {
+        document.documentElement.classList.remove('dark')
+      }
+    }
+  }, [theme])
+
+  // Right-hand Contact Details sidebar state
+  const [showContactSidebar, setShowContactSidebar] = useState(false)
+
+  // Global ⌘K / Ctrl+K keyboard shortcut to open Connect Contact modal
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault()
+        setShowAddFriendModal(true)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
 
   // Add friend state
   const [friendHandle, setFriendHandle] = useState('')
@@ -923,14 +972,14 @@ export function MessagingApp({
   )
 
   return (
-    <div className="flex flex-col h-screen w-full bg-[#0b141a] text-[#e9edef] overflow-hidden font-sans select-none">
+    <div className={`${theme === 'dark' ? 'dark' : ''} flex flex-col h-screen w-full bg-white dark:bg-[#09090b] text-zinc-900 dark:text-zinc-100 overflow-hidden font-sans select-none transition-colors`}>
       <NotificationPermissionBanner userHandle={currentUser.handle} />
       <div className="flex flex-1 w-full overflow-hidden">
         {/* 1. Sidebar */}
         <aside
           className={`${
             activeConv ? 'hidden md:flex' : 'flex'
-          } w-full md:w-80 lg:w-96 border-r border-[#202c33] bg-[#111b21] flex-col shrink-0 h-full`}
+          } w-full md:w-80 lg:w-96 border-r border-zinc-200 dark:border-zinc-800/80 bg-white dark:bg-[#121214] flex-col shrink-0 h-full transition-colors`}
         >
           {/* Header Bar */}
           <SidebarHeader
@@ -947,7 +996,10 @@ export function MessagingApp({
             setInboxFilter={setInboxFilter}
             pendingInquiryCount={pendingInquiryCount}
             inquiriesCount={inquiries.length}
+            totalChatsCount={conversations.length}
             hasLetterboxActivity={hasLetterboxActivity}
+            theme={theme}
+            onToggleTheme={toggleTheme}
             onOpenProfile={() => setShowProfileModal(true)}
             onOpenIdentity={() => setShowIdentityModal(true)}
             onOpenQr={() => setShowQrModal(true)}
@@ -963,7 +1015,7 @@ export function MessagingApp({
           />
 
           {/* Chats or Inquiries Feed */}
-          <div className="flex-1 overflow-y-auto divide-y divide-[#202c33]/40">
+          <div className="flex-1 overflow-y-auto divide-y divide-zinc-100 dark:divide-zinc-800/40">
             {inboxFilter === 'letterbox' || inboxFilter === 'inquiries' ? (
               <InquiriesFeed
                 accountType={accountType}
@@ -994,7 +1046,7 @@ export function MessagingApp({
         <main
           className={`${
             !activeConv ? 'hidden md:flex' : 'flex'
-          } flex-1 flex-col bg-[#0b141a] min-w-0 relative w-full h-full`}
+          } flex-1 flex-col bg-zinc-50/50 dark:bg-[#0e0e10] min-w-0 relative w-full h-full transition-colors`}
         >
           {activeConv ? (
             <>
@@ -1005,6 +1057,8 @@ export function MessagingApp({
                 currentUser={currentUser}
                 streamConnected={streamConnected}
                 onBack={() => setActiveConv(null)}
+                onToggleSidebar={() => setShowContactSidebar(!showContactSidebar)}
+                isSidebarOpen={showContactSidebar}
               />
 
               {/* Message Stream */}
@@ -1034,22 +1088,34 @@ export function MessagingApp({
             </>
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center text-center p-6 sm:p-8 space-y-4 max-w-sm mx-auto">
-              <div className="p-4 rounded-3xl bg-[#111b21] border border-[#202c33] text-[#8696a0]">
-                <MessageSquare className="w-10 h-10 sm:w-12 sm:h-12 text-[#00a884]" />
+              <div className="p-4 rounded-3xl bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 shadow-xs">
+                <MessageSquare className="w-10 h-10 sm:w-12 sm:h-12" />
               </div>
-              <h3 className="text-base font-bold text-[#e9edef]">Independent WhatsApp at Edge</h3>
-              <p className="text-xs text-[#8696a0] leading-relaxed">
+              <h3 className="text-base font-bold text-zinc-900 dark:text-zinc-100">Independent WhatsApp at Edge</h3>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
                 Connect with any user across Cloudflare instances by adding their username and subdomain/domain.
               </p>
               <button
                 onClick={() => setShowAddFriendModal(true)}
-                className="py-2.5 px-4 bg-[#00a884] hover:bg-[#02906f] text-[#111b21] rounded-xl text-xs font-bold flex items-center gap-2 cursor-pointer shadow-lg shadow-[#00a884]/20"
+                className="py-2.5 px-4 bg-zinc-950 text-white dark:bg-white dark:text-zinc-950 hover:bg-zinc-800 dark:hover:bg-zinc-100 rounded-xl text-xs font-bold flex items-center gap-2 cursor-pointer shadow-xs transition-colors"
               >
                 <UserPlus className="w-4 h-4" /> Connect Contact
               </button>
             </div>
           )}
         </main>
+
+        {/* 3. Contact Detail Right Sidebar (Collapsible) */}
+        {activeConv && (
+          <ContactDetailSidebar
+            activeConv={activeConv}
+            messages={messages}
+            isOpen={showContactSidebar}
+            onClose={() => setShowContactSidebar(false)}
+            onOpenLightbox={(url) => setLightboxUrl(url)}
+          />
+        )}
+      </div>
 
         {/* 3. Connect Contact Modal */}
         <ConnectContactModal
@@ -1099,7 +1165,7 @@ export function MessagingApp({
           lightboxUrl={lightboxUrl}
           onClose={() => setLightboxUrl(null)}
         />
-      </div>
+
 
       {/* Profile & Privacy Settings Modal */}
       <ProfileSettingsModal

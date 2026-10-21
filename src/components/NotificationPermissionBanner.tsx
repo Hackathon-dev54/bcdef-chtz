@@ -100,36 +100,36 @@ export const NotificationPermissionBanner: React.FC<NotificationPermissionBanner
 
   return (
     <>
-      <div className="relative bg-gradient-to-r from-[#00a884]/20 via-[#00a884]/10 to-[#111b21] border-b border-[#00a884]/30 px-3 py-2.5 sm:px-4 text-xs text-[#e9edef] animate-in fade-in slide-in-from-top-2">
+      <div className="relative bg-zinc-100 dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 px-3 py-2 sm:px-4 text-xs text-zinc-800 dark:text-zinc-200 animate-in fade-in slide-in-from-top-2">
         <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5">
           <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-lg bg-[#00a884]/20 border border-[#00a884]/40 flex items-center justify-center text-[#00a884] shrink-0">
-              {isIosBrowser ? <Smartphone className="w-4 h-4" /> : <BellRing className="w-4 h-4 animate-bounce" />}
+            <div className="w-7 h-7 rounded-lg bg-zinc-200 dark:bg-zinc-800 flex items-center justify-center text-zinc-900 dark:text-zinc-100 shrink-0">
+              {isIosBrowser ? <Smartphone className="w-4 h-4" /> : <BellRing className="w-4 h-4" />}
             </div>
             <div>
               {isIosBrowser ? (
-                <p className="font-semibold text-white">
+                <p className="font-semibold text-zinc-900 dark:text-zinc-100">
                   Add to iPhone Home Screen for Lock-Screen Alerts
-                  <span className="block text-[11px] font-normal text-[#8696a0]">
+                  <span className="block text-[11px] font-normal text-zinc-500 dark:text-zinc-400">
                     Apple requires installing Chatze via Safari Share &gt; Add to Home Screen to unlock push notifications.
                   </span>
                 </p>
               ) : isSubscribed ? (
-                <p className="font-semibold text-[#00a884] flex items-center gap-1.5">
+                <p className="font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
                   <Check className="w-3.5 h-3.5" /> Notifications Active!
-                  <span className="text-[11px] font-normal text-[#8696a0]">
+                  <span className="text-[11px] font-normal text-zinc-500 dark:text-zinc-400">
                     Lock your phone or switch apps to test incoming alerts.
                   </span>
                 </p>
               ) : (
-                <p className="font-semibold text-white">
+                <p className="font-semibold text-zinc-900 dark:text-zinc-100">
                   Enable Lock-Screen Notifications
-                  <span className="block text-[11px] font-normal text-[#8696a0]">
+                  <span className="block text-[11px] font-normal text-zinc-500 dark:text-zinc-400">
                     Receive instant vibration and sound alerts on your phone when new messages arrive.
                   </span>
                 </p>
               )}
-              {errorMsg && <p className="text-[11px] text-rose-400 mt-0.5">{errorMsg}</p>}
+              {errorMsg && <p className="text-[11px] text-rose-500 mt-0.5">{errorMsg}</p>}
             </div>
           </div>
 
@@ -137,7 +137,7 @@ export const NotificationPermissionBanner: React.FC<NotificationPermissionBanner
             {isIosBrowser ? (
               <button
                 onClick={() => setShowIosModal(true)}
-                className="px-3 py-1.5 rounded-lg bg-[#00a884] hover:bg-[#008f6f] text-slate-950 font-semibold text-xs transition"
+                className="px-3 py-1.5 rounded-lg bg-zinc-950 text-white dark:bg-white dark:text-zinc-950 hover:bg-zinc-800 dark:hover:bg-zinc-100 font-semibold text-xs transition cursor-pointer shadow-xs"
               >
                 View iOS Setup
               </button>
@@ -145,7 +145,7 @@ export const NotificationPermissionBanner: React.FC<NotificationPermissionBanner
               <button
                 onClick={handleSendTest}
                 disabled={loading}
-                className="px-3 py-1.5 rounded-lg bg-[#202c33] hover:bg-[#2a3942] border border-[#00a884]/40 text-[#00a884] font-semibold text-xs flex items-center gap-1.5 transition"
+                className="px-3 py-1.5 rounded-lg bg-zinc-200 dark:bg-zinc-800 hover:bg-zinc-300 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 font-semibold text-xs flex items-center gap-1.5 transition cursor-pointer"
               >
                 {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
                 {testSent ? 'Alert Dispatched!' : 'Send Test Alert'}
@@ -154,7 +154,7 @@ export const NotificationPermissionBanner: React.FC<NotificationPermissionBanner
               <button
                 onClick={handleEnable}
                 disabled={loading}
-                className="px-3 py-1.5 rounded-lg bg-[#00a884] hover:bg-[#008f6f] text-slate-950 font-semibold text-xs flex items-center gap-1.5 transition shadow-sm"
+                className="px-3 py-1.5 rounded-lg bg-zinc-950 text-white dark:bg-white dark:text-zinc-950 hover:bg-zinc-800 dark:hover:bg-zinc-100 font-semibold text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs"
               >
                 {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Bell className="w-3.5 h-3.5" />}
                 Enable Notifications
@@ -164,7 +164,7 @@ export const NotificationPermissionBanner: React.FC<NotificationPermissionBanner
             <button
               onClick={handleDismiss}
               title="Dismiss"
-              className="p-1 rounded-md text-[#8696a0] hover:text-white hover:bg-[#202c33] transition"
+              className="p-1 rounded-md text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-200 dark:hover:bg-zinc-800 transition cursor-pointer"
             >
               <X className="w-3.5 h-3.5" />
             </button>

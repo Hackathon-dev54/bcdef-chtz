@@ -24,37 +24,29 @@ export const ImageSendModal: React.FC<ImageSendModalProps> = ({
   if (!selectedImageFile) return null
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 z-50">
-      <div className="max-w-md w-full bg-[#111b21] border border-[#202c33] rounded-2xl p-4 sm:p-5 shadow-2xl space-y-3.5">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 z-50 animate-in fade-in duration-150">
+      <div className="max-w-md w-full bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 rounded-2xl p-4 sm:p-5 shadow-xl space-y-3.5">
         <div className="flex items-center justify-between">
-          <span className="text-xs font-semibold text-[#e9edef] flex items-center gap-1.5">
-            <ImageIcon className="w-4 h-4 text-[#00a884]" /> Send Photo
+          <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-1.5">
+            <ImageIcon className="w-4 h-4 text-zinc-700 dark:text-zinc-300" /> Send Photo
           </span>
           <button
             disabled={isUploadingImage}
             onClick={() => setSelectedImageFile(null)}
-            className="text-[#8696a0] hover:text-[#e9edef] disabled:opacity-40"
+            className="p-1 rounded-lg text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 disabled:opacity-40 transition-colors"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
-        <div className="relative rounded-xl overflow-hidden bg-black/50 max-h-[300px] sm:max-h-[360px] flex items-center justify-center border border-white/5">
+        <div className="relative rounded-xl overflow-hidden bg-zinc-100 dark:bg-black/50 max-h-[300px] sm:max-h-[360px] flex items-center justify-center border border-zinc-200 dark:border-zinc-800">
           <img
             src={selectedImageFile.dataUrl}
             alt="Upload preview"
             className="w-full h-auto max-h-[300px] sm:max-h-[360px] object-contain rounded-xl"
           />
-          <span className="absolute bottom-2 right-2 px-2.5 py-1 rounded-full bg-black/75 backdrop-blur-md text-[10px] text-[#00a884] font-mono border border-[#00a884]/30 shadow-lg">
-            ~{selectedImageFile.sizeKb} KB
-            {selectedImageFile.originalKb && selectedImageFile.originalKb > selectedImageFile.sizeKb ? (
-              <span className="text-white/80 ml-1">
-                (from {selectedImageFile.originalKb} KB,{' '}
-                {Math.round((1 - selectedImageFile.sizeKb / selectedImageFile.originalKb) * 100)}% saved)
-              </span>
-            ) : (
-              ' (Edge Optimized)'
-            )}
+          <span className="absolute bottom-2 right-2 px-2.5 py-1 rounded-full bg-zinc-900/80 text-white text-[10px] font-mono shadow-xs backdrop-blur-xs">
+            ~{selectedImageFile.sizeKb} KB (WebP)
           </span>
         </div>
 
@@ -67,12 +59,8 @@ export const ImageSendModal: React.FC<ImageSendModalProps> = ({
               setSelectedImageFile((prev) => (prev ? { ...prev, caption: e.target.value } : null))
             }
             placeholder="Add a caption... (optional)"
-            className="w-full px-3.5 py-2.5 bg-[#202c33] border border-[#222e35] rounded-xl text-xs sm:text-sm text-[#e9edef] placeholder-[#8696a0] focus:outline-none focus:border-[#00a884]"
+            className="w-full px-3.5 py-2.5 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl text-xs sm:text-sm text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 focus:outline-none focus:border-zinc-400 dark:focus:border-zinc-600"
           />
-          <p className="text-[10px] text-[#8696a0] px-1 flex items-center justify-between">
-            <span>Auto-converted to lightweight WebP for D1 database storage.</span>
-            <span className="text-[#00a884] font-medium">Cached via wsrv.nl</span>
-          </p>
         </div>
 
         <div className="flex items-center justify-end gap-2 pt-1">
@@ -80,7 +68,7 @@ export const ImageSendModal: React.FC<ImageSendModalProps> = ({
             type="button"
             disabled={isUploadingImage}
             onClick={() => setSelectedImageFile(null)}
-            className="px-4 py-2 text-xs text-[#8696a0] hover:text-[#e9edef] disabled:opacity-40"
+            className="px-4 py-2 text-xs text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 disabled:opacity-40 cursor-pointer"
           >
             Cancel
           </button>
@@ -88,7 +76,7 @@ export const ImageSendModal: React.FC<ImageSendModalProps> = ({
             type="button"
             disabled={isUploadingImage}
             onClick={handleSendImage}
-            className="px-5 py-2.5 bg-[#00a884] hover:bg-[#02906f] disabled:opacity-50 text-[#111b21] font-bold rounded-xl text-xs flex items-center gap-2 cursor-pointer shadow-lg shadow-[#00a884]/20"
+            className="px-5 py-2.5 bg-zinc-950 text-white dark:bg-white dark:text-zinc-950 hover:bg-zinc-800 dark:hover:bg-zinc-100 disabled:opacity-40 font-semibold rounded-xl text-xs flex items-center gap-2 cursor-pointer shadow-xs transition-all"
           >
             {isUploadingImage ? (
               <>
@@ -98,7 +86,7 @@ export const ImageSendModal: React.FC<ImageSendModalProps> = ({
             ) : (
               <>
                 <Send className="w-3.5 h-3.5" />
-                <span>Send Photo</span>
+                <span>Send</span>
               </>
             )}
           </button>
