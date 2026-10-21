@@ -338,6 +338,7 @@ profileRoutes.get('/api/system/shards', async (c) => {
     },
     shards: shardStatuses,
     mediaStorageEngine: mediaEngine,
+    r2Connected: Boolean(c.env?.MEDIA_BUCKET),
     totalPotentialCapacityMB: MAX_VAULT_SHARDS * SHARD_HARDCAP_MB,
   })
 })

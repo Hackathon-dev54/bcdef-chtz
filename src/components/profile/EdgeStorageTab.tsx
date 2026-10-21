@@ -1,5 +1,14 @@
 import React, { useState, useEffect } from 'react'
-import { CheckCircle2, Database, ShieldCheck, Layers, RefreshCw, HardDrive, Info } from 'lucide-react'
+import {
+  CheckCircle2,
+  Database,
+  ShieldCheck,
+  Layers,
+  RefreshCw,
+  HardDrive,
+  Image as ImageIcon,
+  ChevronDown,
+} from 'lucide-react'
 
 interface ShardInfo {
   shardId: number
@@ -24,6 +33,7 @@ interface SystemShardsResponse {
   }
   shards: ShardInfo[]
   mediaStorageEngine: string
+  r2Connected?: boolean
   totalPotentialCapacityMB: number
 }
 
@@ -31,6 +41,7 @@ export const EdgeStorageTab: React.FC = () => {
   const [data, setData] = useState<SystemShardsResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  const [showR2Guide, setShowR2Guide] = useState(false)
 
   const fetchShards = async (isManual = false) => {
     if (isManual) setRefreshing(true)
@@ -201,6 +212,83 @@ export const EdgeStorageTab: React.FC = () => {
                 )
               })}
             </div>
+          </div>
+        )}
+      </div>
+
+      {/* Media Engine & Optional 10 GB R2 Upgrade Card */}
+      <div className="p-3.5 bg-[#0b141a] border border-[#202c33] rounded-xl space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <ImageIcon className="w-4 h-4 text-[#00a884]" />
+            <span className="font-bold text-[#e9edef] text-[12px] tracking-wide">
+              Media Engine &amp; Image Storage
+            </span>
+          </div>
+          <span
+            className={`text-[10px] px-2 py-0.5 rounded-full font-semibold uppercase flex items-center gap-1 ${
+              data?.r2Connected
+                ? 'bg-[#00a884]/20 text-[#00a884]'
+                : 'bg-amber-500/20 text-amber-400'
+            }`}
+          >
+            {data?.r2Connected ? (
+              <>
+                <CheckCircle2 className="w-3 h-3" />
+                Cloudflare R2 (10 GB Pool)
+              </>
+            ) : (
+              'D1 Shard 8 (Free Mode - 450 MB)'
+            )}
+          </span>
+        </div>
+
+        <p className="text-[11px] text-[#8696a0] leading-relaxed">
+          {data?.r2Connected
+            ? 'Your Chatze instance is connected to Cloudflare R2 object storage with 10 GB of free capacity for images, audio, and documents.'
+            : 'Images and voice notes are compressed to lightweight ~25 KB WebP files and stored inside D1 SQLite Shard 8 (~18,000 photos for $0/mo).'}
+        </p>
+
+        {/* Collapsible / expandable R2 guide for serious merchants */}
+        {!data?.r2Connected && (
+          <div className="pt-2 border-t border-[#202c33]/60 space-y-2">
+            <button
+              type="button"
+              onClick={() => setShowR2Guide(!showR2Guide)}
+              className="w-full flex items-center justify-between text-[11px] text-[#00a884] hover:text-[#02906f] font-semibold cursor-pointer"
+            >
+              <span>Optional: Upgrade to 10 GB Cloudflare R2 (Step-by-Step)</span>
+              <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showR2Guide ? 'rotate-180' : ''}`} />
+            </button>
+
+            {showR2Guide && (
+              <div className="p-2.5 bg-[#111b21] border border-[#202c33] rounded-lg space-y-2 text-[11px] text-[#8696a0]">
+                <div className="text-[#e9edef] font-semibold text-[11px]">
+                  How to unlock 10 GB free object storage in Cloudflare Dashboard (No CLI):
+                </div>
+                <ol className="list-decimal list-inside space-y-1.5 pl-0.5 text-[11px]">
+                  <li>
+                    In Cloudflare Dashboard, go to <strong className="text-[#e9edef]">R2 Object Storage</strong> and click <strong className="text-[#e9edef]">Create bucket</strong> (Name it <code className="text-[#00a884] bg-[#202c33] px-1 py-0.5 rounded">chatze-media</code>).
+                  </li>
+                  <li>
+                    Go to <strong className="text-[#e9edef]">Workers &amp; Pages</strong> &rarr; Click your <strong className="text-[#e9edef]">chatze</strong> worker &rarr; <strong className="text-[#e9edef]">Settings</strong> &rarr; <strong className="text-[#e9edef]">Bindings</strong>.
+                  </li>
+                  <li>
+                    Click <strong className="text-[#e9edef]">Add</strong> &rarr; Select <strong className="text-[#e9edef]">R2 Bucket</strong>:
+                    <ul className="list-disc list-inside pl-4 mt-1 space-y-0.5 text-[#e9edef]">
+                      <li>Variable name: <code className="text-[#00a884] bg-[#202c33] px-1 py-0.5 rounded">MEDIA_BUCKET</code></li>
+                      <li>R2 Bucket: <code className="text-[#00a884] bg-[#202c33] px-1 py-0.5 rounded">chatze-media</code></li>
+                    </ul>
+                  </li>
+                  <li>
+                    Click <strong className="text-[#e9edef]">Save and Deploy</strong>.
+                  </li>
+                </ol>
+                <div className="p-2 bg-[#00a884]/10 border border-[#00a884]/20 rounded text-[10px] text-[#00a884]">
+                  Zero data loss: Any photos already saved in D1 Shard 8 will continue loading seamlessly!
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

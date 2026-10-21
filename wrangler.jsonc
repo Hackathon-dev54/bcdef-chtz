@@ -44,7 +44,10 @@
       "database_name": "chatze_shard_8"
     }
   ],
-  // Optional Cloudflare R2 Bucket (Auto-detected; falls back to Shard 9 without credit card)
+  // Optional Cloudflare R2 Bucket (10 GB Free Object Storage for Images/Media):
+  // Zero-credit card free users don't need this (images automatically save to D1 Shard 8).
+  // When ready to upgrade, create a bucket named "chatze-media" and bind "MEDIA_BUCKET"
+  // in Cloudflare Dashboard > Settings > Bindings (or uncomment below):
   // "r2_buckets": [
   //   { "binding": "MEDIA_BUCKET", "bucket_name": "chatze-media" }
   // ],
