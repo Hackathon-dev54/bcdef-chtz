@@ -1,15 +1,52 @@
 import React, { useState, useEffect } from 'react'
+import { Sparkles } from 'lucide-react'
 import { SetupWizard } from './components/SetupWizard'
 import { AuthScreens } from './components/AuthScreens'
 import { MessagingApp } from './components/MessagingApp'
 import { CustomerInquiryPage } from './components/CustomerInquiryPage'
 
 export function App() {
-  const [setupRequired, setSetupRequired] = useState<boolean | null>(null)
-  const [displayName, setDisplayName] = useState('Chatze User')
-  const [currentUser, setCurrentUser] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
   const [forceLogin, setForceLogin] = useState(false)
+
+  // 1. Instant Local-First Hydration (0ms load from localStorage cache)
+  const [currentUser, setCurrentUser] = useState<any>(() => {
+    if (typeof window === 'undefined') return null
+    try {
+      const token = localStorage.getItem('chatze_auth_token')
+      const cached = localStorage.getItem('chatze_user')
+      if (token && cached) {
+        return JSON.parse(cached)
+      }
+    } catch {}
+    return null
+  })
+
+  const [displayName, setDisplayName] = useState<string>(() => {
+    if (typeof window === 'undefined') return 'Chatze User'
+    try {
+      const cached = localStorage.getItem('chatze_user')
+      if (cached) {
+        const parsed = JSON.parse(cached)
+        return parsed.display_name || parsed.displayName || 'Chatze User'
+      }
+    } catch {}
+    return 'Chatze User'
+  })
+
+  const [setupRequired, setSetupRequired] = useState<boolean | null>(() => {
+    if (typeof window === 'undefined') return null
+    if (localStorage.getItem('chatze_setup_completed') === 'true') return false
+    if (localStorage.getItem('chatze_auth_token')) return false
+    return null
+  })
+
+  // Only show loading if we have zero cached session to avoid blocking reload
+  const [loading, setLoading] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return true
+    const token = localStorage.getItem('chatze_auth_token')
+    const cached = localStorage.getItem('chatze_user')
+    return !(token && cached)
+  })
 
   const isShopVisitor = !forceLogin && typeof window !== 'undefined' && (
     window.location.pathname.startsWith('/shop') ||
@@ -18,58 +55,67 @@ export function App() {
     new URLSearchParams(window.location.search).has('letterbox')
   )
 
+  // 2. Parallel Background Validation & Revalidation
   useEffect(() => {
+    let isMounted = true
+
     async function checkState() {
       try {
-        const setupRes = await fetch('/api/setup/status')
-        if (setupRes.ok) {
-          const setupData = await setupRes.json()
-          if (setupData.setupRequired) {
-            setSetupRequired(true)
-            setLoading(false)
-            return
+        const storedToken = typeof window !== 'undefined' ? localStorage.getItem('chatze_auth_token') : null
+
+        // Fire setup status and auth session check concurrently in parallel
+        const setupPromise = fetch('/api/setup/status').then(async (res) => {
+          if (res.ok) {
+            const data = await res.json()
+            return data
           }
-          setSetupRequired(false)
-          if (setupData.displayName) setDisplayName(setupData.displayName)
-        } else {
+          return { setupRequired: true }
+        }).catch(() => ({ setupRequired: false }))
+
+        const sessionPromise = storedToken
+          ? fetch('/api/auth/session', { headers: { Authorization: `Bearer ${storedToken}` } })
+              .then(async (res) => (res.ok ? res.json() : null))
+              .catch(() => null)
+          : Promise.resolve(null)
+
+        const [setupData, sessionData] = await Promise.all([setupPromise, sessionPromise])
+
+        if (!isMounted) return
+
+        if (setupData?.setupRequired) {
           setSetupRequired(true)
+          localStorage.removeItem('chatze_setup_completed')
           setLoading(false)
           return
         }
 
-        // Check device token in localStorage
-        const storedToken = localStorage.getItem('chatze_auth_token')
-        if (!storedToken) {
-          // Device has not logged in -> must enter password
-          setCurrentUser(null)
-          setLoading(false)
-          return
+        setSetupRequired(false)
+        localStorage.setItem('chatze_setup_completed', 'true')
+        if (setupData?.displayName) {
+          setDisplayName(setupData.displayName)
         }
 
-        const sessionRes = await fetch('/api/auth/session', {
-          headers: {
-            Authorization: `Bearer ${storedToken}`,
-          },
-        })
-        if (sessionRes.ok) {
-          const sessionData = await sessionRes.json()
-          if (sessionData.user) {
-            setCurrentUser(sessionData.user)
-          } else {
-            localStorage.removeItem('chatze_auth_token')
-            setCurrentUser(null)
-          }
-        } else {
+        if (sessionData && sessionData.user) {
+          setCurrentUser(sessionData.user)
+          localStorage.setItem('chatze_user', JSON.stringify(sessionData.user))
+        } else if (storedToken && !sessionData) {
+          // Token expired or invalid
           localStorage.removeItem('chatze_auth_token')
+          localStorage.removeItem('chatze_user')
           setCurrentUser(null)
         }
       } catch (err) {
-        console.warn('App init status check error', err)
+        console.warn('App init background validation error', err)
       } finally {
-        setLoading(false)
+        if (isMounted) setLoading(false)
       }
     }
+
     checkState()
+
+    return () => {
+      isMounted = false
+    }
   }, [])
 
   const handleLogout = async () => {
@@ -80,15 +126,30 @@ export function App() {
         headers: { Authorization: `Bearer ${token}` },
       }).catch(() => {})
       localStorage.removeItem('chatze_auth_token')
+      localStorage.removeItem('chatze_user')
     }
     setCurrentUser(null)
   }
 
-  if (loading) {
+  // Modern Minimalist Theme-Aware Splash Loader (Only for fresh browser first-time visits)
+  if (loading && !currentUser) {
+    const isDark = typeof window !== 'undefined' ? localStorage.getItem('chatze_theme') !== 'light' : true
     return (
-      <div className="min-h-screen bg-[#0b141a] flex flex-col items-center justify-center text-[#8696a0] gap-3 font-sans">
-        <div className="w-8 h-8 border-2 border-[#00a884] border-t-transparent rounded-full animate-spin"></div>
-        <p className="text-xs font-medium tracking-wide">Connecting to Edge Cloud...</p>
+      <div className={`${isDark ? 'dark' : ''} min-h-screen bg-white dark:bg-[#09090b] text-zinc-900 dark:text-zinc-100 flex flex-col items-center justify-center p-4 font-sans select-none transition-colors`}>
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-12 h-12 rounded-2xl bg-zinc-950 text-white dark:bg-white dark:text-zinc-950 flex items-center justify-center font-bold text-lg shadow-sm animate-pulse">
+            <Sparkles className="w-6 h-6" />
+          </div>
+          <div className="flex flex-col items-center gap-1">
+            <span className="font-bold text-base tracking-tight text-zinc-900 dark:text-zinc-100">
+              chatze.
+            </span>
+            <div className="flex items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400">
+              <div className="w-1.5 h-1.5 rounded-full bg-zinc-400 dark:bg-zinc-600 animate-ping" />
+              <span>Connecting to edge node...</span>
+            </div>
+          </div>
+        </div>
       </div>
     )
   }
@@ -116,14 +177,17 @@ export function App() {
       <SetupWizard
         onComplete={(name, handle, token) => {
           if (token) localStorage.setItem('chatze_auth_token', token)
-          setDisplayName(name)
-          setSetupRequired(false)
-          setCurrentUser({
+          const newUser = {
             id: 'usr_admin',
             handle: handle || 'admin',
             display_name: name,
             role: 'admin',
-          })
+          }
+          localStorage.setItem('chatze_user', JSON.stringify(newUser))
+          localStorage.setItem('chatze_setup_completed', 'true')
+          setDisplayName(name)
+          setSetupRequired(false)
+          setCurrentUser(newUser)
         }}
       />
     )
@@ -134,6 +198,8 @@ export function App() {
       <AuthScreens
         onLoginSuccess={(user, token) => {
           if (token) localStorage.setItem('chatze_auth_token', token)
+          if (user) localStorage.setItem('chatze_user', JSON.stringify(user))
+          localStorage.setItem('chatze_setup_completed', 'true')
           setCurrentUser(user)
           setForceLogin(false)
         }}
