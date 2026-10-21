@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "chatze-np-9b4q2m",
+  "name": "bcdef-chtz",
   "main": "src/server/index.ts",
   "compatibility_date": "2024-09-23",
   "compatibility_flags": [
@@ -9,39 +9,8 @@
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "chatze_db"
-    },
-    {
-      "binding": "DB_SHARD_1",
-      "database_name": "chatze_shard_1"
-    },
-    {
-      "binding": "DB_SHARD_2",
-      "database_name": "chatze_shard_2"
-    },
-    {
-      "binding": "DB_SHARD_3",
-      "database_name": "chatze_shard_3"
-    },
-    {
-      "binding": "DB_SHARD_4",
-      "database_name": "chatze_shard_4"
-    },
-    {
-      "binding": "DB_SHARD_5",
-      "database_name": "chatze_shard_5"
-    },
-    {
-      "binding": "DB_SHARD_6",
-      "database_name": "chatze_shard_6"
-    },
-    {
-      "binding": "DB_SHARD_7",
-      "database_name": "chatze_shard_7"
-    },
-    {
-      "binding": "DB_SHARD_8",
-      "database_name": "chatze_shard_8"
+      "database_name": "chatze_db",
+      "database_id": "cae4533a-c9f4-4a92-aa2c-4927452abc0b"
     }
   ],
   "durable_objects": {
