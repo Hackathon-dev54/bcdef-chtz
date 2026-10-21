@@ -1,5 +1,5 @@
 import React from 'react'
-import { Sparkles, Sun, Moon, Search } from 'lucide-react'
+import { Sparkles, Sun, Moon, Search, Bell } from 'lucide-react'
 
 interface TopNavbarProps {
   currentUser: { id: string; handle: string; display_name: string; role?: string }
@@ -7,6 +7,8 @@ interface TopNavbarProps {
   theme: 'dark' | 'light'
   onToggleTheme: () => void
   onOpenSettings: () => void
+  onOpenNotifications?: () => void
+  hasUnread?: boolean
   onFocusSearch?: () => void
 }
 
@@ -16,6 +18,8 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({
   theme,
   onToggleTheme,
   onOpenSettings,
+  onOpenNotifications,
+  hasUnread = false,
   onFocusSearch,
 }) => {
   const brandName = (currentUser.handle || 'chatze').toLowerCase() + '.'
@@ -35,8 +39,8 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({
         </span>
       </div>
 
-      {/* Right: Search, Sun/Moon Theme Toggle, and User Initials Circle (Matching Reference Exactly) */}
-      <div className="flex items-center gap-2 sm:gap-3 text-zinc-500 dark:text-zinc-400">
+      {/* Right: Search, Notifications, Theme Toggle, and User Avatar */}
+      <div className="flex items-center gap-1.5 sm:gap-2.5 text-zinc-500 dark:text-zinc-400">
         {/* Quick Search Trigger */}
         {onFocusSearch && (
           <button
@@ -48,6 +52,19 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({
             <Search className="w-4 h-4" />
           </button>
         )}
+
+        {/* Notification Bell Icon */}
+        <button
+          type="button"
+          onClick={onOpenNotifications || onOpenSettings}
+          title="Notifications & Alerts"
+          className="relative p-2 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors cursor-pointer"
+        >
+          <Bell className="w-4 h-4" />
+          {hasUnread && (
+            <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-zinc-950 dark:bg-white ring-2 ring-white dark:ring-[#121214]" />
+          )}
+        </button>
 
         {/* Light / Dark Mode Toggle */}
         <button

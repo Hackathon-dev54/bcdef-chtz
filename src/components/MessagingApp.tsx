@@ -3,7 +3,7 @@ import { MessageSquare, UserPlus, Check } from 'lucide-react'
 import { NotificationPermissionBanner } from './NotificationPermissionBanner'
 import { OfflineIndicator } from './OfflineIndicator'
 import { ProfileSettingsModal } from './ProfileSettingsModal'
-import { SettingsPage } from './SettingsPage'
+import { SettingsPage, type SettingsTab } from './SettingsPage'
 import {
   type Conversation,
   type InboxFilter,
@@ -53,6 +53,7 @@ export function MessagingApp({
   const [showIdentityModal, setShowIdentityModal] = useState(false)
   const [showProfileModal, setShowProfileModal] = useState(false)
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
+  const [settingsTab, setSettingsTab] = useState<SettingsTab>('profile')
   const [currentDisplayName, setCurrentDisplayName] = useState(businessName || currentUser.display_name)
   const [copiedLink, setCopiedLink] = useState(false)
   const [showQrModal, setShowQrModal] = useState(false)
@@ -229,6 +230,10 @@ export function MessagingApp({
       inquiries.some((i) => i.status === 'pending')
   )
 
+  const hasUnread = useMemo(() => {
+    return pendingInquiryCount > 0 || conversations.some((c) => (c.unreadCount || 0) > 0)
+  }, [pendingInquiryCount, conversations])
+
   return (
     <div className={`${theme === 'dark' ? 'dark' : ''} flex flex-col h-screen w-full bg-white dark:bg-[#09090b] text-zinc-900 dark:text-zinc-100 overflow-hidden font-sans select-none transition-colors`}>
       {/* 0. Top Full-Width Navbar (Spans 100% of the viewport) */}
@@ -237,7 +242,15 @@ export function MessagingApp({
         currentDisplayName={currentDisplayName}
         theme={theme}
         onToggleTheme={toggleTheme}
-        onOpenSettings={() => setIsSettingsOpen(true)}
+        onOpenSettings={() => {
+          setSettingsTab('profile')
+          setIsSettingsOpen(true)
+        }}
+        onOpenNotifications={() => {
+          setSettingsTab('notifications')
+          setIsSettingsOpen(true)
+        }}
+        hasUnread={hasUnread}
         onFocusSearch={() => {
           setIsSettingsOpen(false)
           searchInputRef.current?.focus()
@@ -251,6 +264,7 @@ export function MessagingApp({
           <SettingsPage
             currentUser={currentUser}
             currentDisplayName={currentDisplayName}
+            initialTab={settingsTab}
             onBack={() => setIsSettingsOpen(false)}
             onProfileUpdated={(updated) => {
               setCurrentDisplayName(updated.displayName)

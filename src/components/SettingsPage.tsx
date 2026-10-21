@@ -38,6 +38,7 @@ interface SettingsPageProps {
   onOpenPaymentQrModal?: () => void
   onLogout: () => void
   shopPortfolioUrl?: string
+  initialTab?: SettingsTab
 }
 
 interface SettingsMenuItem {
@@ -94,9 +95,18 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   onOpenIdentityModal,
   onOpenPaymentQrModal,
   onLogout,
+  shopPortfolioUrl,
+  initialTab = 'profile',
 }) => {
-  const [activeTab, setActiveTab] = useState<SettingsTab>('profile')
+  const [activeTab, setActiveTab] = useState<SettingsTab>(initialTab)
   const [mobileView, setMobileView] = useState<'sidebar' | 'content'>('content')
+
+  useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab)
+      setMobileView('content')
+    }
+  }, [initialTab])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saveSuccess, setSaveSuccess] = useState(false)
