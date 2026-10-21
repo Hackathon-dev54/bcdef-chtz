@@ -31,6 +31,7 @@ import {
   PaymentQrModal,
   ImageSendModal,
   ImageLightboxModal,
+  NotificationModal,
   ContactDetailSidebar,
 } from './messaging'
 
@@ -52,6 +53,7 @@ export function MessagingApp({
   const [accountType, setAccountType] = useState<'personal' | 'business'>('personal')
   const [showIdentityModal, setShowIdentityModal] = useState(false)
   const [showProfileModal, setShowProfileModal] = useState(false)
+  const [showNotificationModal, setShowNotificationModal] = useState(false)
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [settingsTab, setSettingsTab] = useState<SettingsTab>('profile')
   const [currentDisplayName, setCurrentDisplayName] = useState(businessName || currentUser.display_name)
@@ -247,8 +249,7 @@ export function MessagingApp({
           setIsSettingsOpen(true)
         }}
         onOpenNotifications={() => {
-          setSettingsTab('notifications')
-          setIsSettingsOpen(true)
+          setShowNotificationModal(true)
         }}
         hasUnread={hasUnread}
         onFocusSearch={() => {
@@ -476,6 +477,13 @@ export function MessagingApp({
       <ImageLightboxModal
         lightboxUrl={lightboxUrl}
         onClose={() => setLightboxUrl(null)}
+      />
+
+      {/* 8. Notifications & PWA Modal */}
+      <NotificationModal
+        isOpen={showNotificationModal}
+        onClose={() => setShowNotificationModal(false)}
+        userHandle={currentUser.handle}
       />
 
       {/* Profile & Privacy Settings Modal */}
