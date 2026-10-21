@@ -1,6 +1,8 @@
 export * from './types'
 export * from './mediaUtils'
+export { TopNavbar } from './TopNavbar'
 export { SidebarHeader } from './SidebarHeader'
+export { SidebarFooter } from './SidebarFooter'
 export { IncomingRequestsBanner } from './IncomingRequestsBanner'
 export { InquiriesFeed } from './InquiriesFeed'
 export { ConversationList } from './ConversationList'

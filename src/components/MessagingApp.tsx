@@ -22,7 +22,9 @@ import {
   getOptimizedImageUrl,
   parseMessageContent,
   compressImageToWebP,
+  TopNavbar,
   SidebarHeader,
+  SidebarFooter,
   IncomingRequestsBanner,
   InquiriesFeed,
   ConversationList,
@@ -144,7 +146,7 @@ export function MessagingApp({
   const [isUploadingImage, setIsUploadingImage] = useState(false)
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
-
+  const searchInputRef = useRef<HTMLInputElement>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const activeConvRef = useRef<Conversation | null>(null)
@@ -973,9 +975,25 @@ export function MessagingApp({
 
   return (
     <div className={`${theme === 'dark' ? 'dark' : ''} flex flex-col h-screen w-full bg-white dark:bg-[#09090b] text-zinc-900 dark:text-zinc-100 overflow-hidden font-sans select-none transition-colors`}>
+      {/* 0. Top Full-Width Navbar (Spans 100% of the viewport) */}
+      <TopNavbar
+        currentUser={currentUser}
+        currentDisplayName={currentDisplayName}
+        theme={theme}
+        onToggleTheme={toggleTheme}
+        onOpenProfile={() => setShowProfileModal(true)}
+        onOpenIdentity={() => setShowIdentityModal(true)}
+        onOpenQr={() => setShowQrModal(true)}
+        onLogout={onLogout}
+        onFocusSearch={() => {
+          searchInputRef.current?.focus()
+        }}
+      />
+
       <NotificationPermissionBanner userHandle={currentUser.handle} />
+
       <div className="flex flex-1 w-full overflow-hidden">
-        {/* 1. Sidebar */}
+        {/* 1. Left Sidebar */}
         <aside
           className={`${
             activeConv ? 'hidden md:flex' : 'flex'
@@ -998,13 +1016,8 @@ export function MessagingApp({
             inquiriesCount={inquiries.length}
             totalChatsCount={conversations.length}
             hasLetterboxActivity={hasLetterboxActivity}
-            theme={theme}
-            onToggleTheme={toggleTheme}
-            onOpenProfile={() => setShowProfileModal(true)}
-            onOpenIdentity={() => setShowIdentityModal(true)}
-            onOpenQr={() => setShowQrModal(true)}
             onOpenConnectContact={() => setShowAddFriendModal(true)}
-            onLogout={onLogout}
+            searchInputRef={searchInputRef}
           />
 
           {/* Incoming Connection Requests Banner */}
@@ -1040,6 +1053,13 @@ export function MessagingApp({
               />
             )}
           </div>
+
+          {/* Bottom Pinned User Profile Footer */}
+          <SidebarFooter
+            currentUser={currentUser}
+            currentDisplayName={currentDisplayName}
+            onOpenProfile={() => setShowProfileModal(true)}
+          />
         </aside>
 
         {/* 2. Main Chat Panel */}

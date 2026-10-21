@@ -1,25 +1,13 @@
 import React from 'react'
 import {
   Search,
-  Settings,
   Store,
-  Share2,
-  QrCode,
-  LogOut,
   Globe,
   Check,
   Copy,
   ExternalLink,
-  Shield,
   UserPlus,
-  Sun,
-  Moon,
-  MessageSquare,
-  Sparkles,
 } from 'lucide-react'
-import { CHATZE_HUB_URL } from '../../lib/hubConfig'
-import { PWAInstallButton } from '../PWAInstallButton'
-import { NotificationToggleButton } from '../NotificationToggleButton'
 import type { InboxFilter } from './types'
 
 interface SidebarHeaderProps {
@@ -38,149 +26,38 @@ interface SidebarHeaderProps {
   inquiriesCount: number
   totalChatsCount?: number
   hasLetterboxActivity: boolean
-  theme?: 'dark' | 'light'
-  onToggleTheme?: () => void
-  onOpenProfile: () => void
-  onOpenIdentity: () => void
-  onOpenQr: () => void
   onOpenConnectContact: () => void
-  onLogout: () => void
+  searchInputRef?: React.RefObject<HTMLInputElement | null>
 }
 
 export const SidebarHeader: React.FC<SidebarHeaderProps> = ({
   currentUser,
-  currentDisplayName,
   accountType,
   shopPortfolioUrl,
   copiedShopLink,
   handleCopyShopUrl,
-  handleShareShopUrl,
   searchQuery,
   setSearchQuery,
   inboxFilter,
   setInboxFilter,
   pendingInquiryCount,
-  inquiriesCount,
   totalChatsCount = 0,
-  hasLetterboxActivity,
-  theme = 'dark',
-  onToggleTheme,
-  onOpenProfile,
-  onOpenIdentity,
-  onOpenQr,
   onOpenConnectContact,
-  onLogout,
+  searchInputRef,
 }) => {
-  const brandName = (currentUser.handle || 'chatze').toLowerCase() + '.'
-  const userInitials = (currentDisplayName || currentUser.display_name || 'ME')
-    .slice(0, 2)
-    .toUpperCase()
-
   return (
-    <div className="p-4 border-b border-zinc-200 dark:border-zinc-800/80 bg-white dark:bg-[#121214] space-y-4 shrink-0 transition-colors">
-      {/* 1. Top Application Bar: Brand Logo, Theme Toggle, Actions, User Avatar */}
-      <div className="flex items-center justify-between">
-        {/* Left: Brand Identity */}
-        <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg bg-zinc-900 text-white dark:bg-white dark:text-zinc-950 flex items-center justify-center font-bold text-xs shadow-xs">
-            <Sparkles className="w-3.5 h-3.5" />
-          </div>
-          <span className="font-bold text-sm tracking-tight text-zinc-900 dark:text-zinc-100">
-            {brandName}
-          </span>
-        </div>
-
-        {/* Right: Controls & Profile */}
-        <div className="flex items-center gap-1 text-zinc-500 dark:text-zinc-400">
-          {/* Light / Dark Mode Toggle */}
-          {onToggleTheme && (
-            <button
-              type="button"
-              onClick={onToggleTheme}
-              title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-              className="p-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors cursor-pointer"
-            >
-              {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-            </button>
-          )}
-
-          <PWAInstallButton className="hidden sm:inline-flex" />
-          <NotificationToggleButton userHandle={currentUser.handle} />
-
-          {/* Hub Directory */}
-          <a
-            href={CHATZE_HUB_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            title="Browse Hub Stores"
-            className="p-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
-          >
-            <Store className="w-4 h-4" />
-          </a>
-
-          {/* Share instance URL */}
-          <button
-            type="button"
-            onClick={onOpenIdentity}
-            title="My Instance Address / QR"
-            className="p-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors cursor-pointer"
-          >
-            <Share2 className="w-4 h-4" />
-          </button>
-
-          {/* Payment QR */}
-          <button
-            type="button"
-            onClick={onOpenQr}
-            title="Payment QR"
-            className="p-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors cursor-pointer"
-          >
-            <QrCode className="w-4 h-4" />
-          </button>
-
-          {/* Settings */}
-          <button
-            type="button"
-            onClick={onOpenProfile}
-            title="Profile & Settings"
-            className="p-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors cursor-pointer"
-          >
-            <Settings className="w-4 h-4" />
-          </button>
-
-          {/* User Initials Badge (Clickable to Profile) */}
-          <button
-            type="button"
-            onClick={onOpenProfile}
-            title={`Logged in as @${currentUser.handle}`}
-            className="w-7 h-7 ml-1 rounded-full bg-zinc-200 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 border border-zinc-300 dark:border-zinc-700 font-bold text-[10px] flex items-center justify-center hover:opacity-85 transition-opacity cursor-pointer shadow-xs"
-          >
-            {userInitials}
-          </button>
-
-          {/* Logout */}
-          <button
-            type="button"
-            onClick={onLogout}
-            title="Lock / Logout"
-            className="p-1.5 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/40 hover:text-rose-500 transition-colors cursor-pointer ml-0.5"
-          >
-            <LogOut className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
-
-      {/* 2. Workspace Heading */}
-      <div className="space-y-0.5 pt-1">
+    <div className="p-4 sm:p-5 border-b border-zinc-200 dark:border-zinc-800/80 bg-white dark:bg-[#121214] space-y-4 shrink-0 transition-colors select-none">
+      {/* 1. Workspace Subtitle & Title */}
+      <div className="space-y-0.5">
         <span className="text-[10px] font-bold tracking-wider uppercase text-zinc-400 dark:text-zinc-500 block">
-          Workspace
+          {currentUser.handle ? currentUser.handle.toUpperCase() : 'WORKSPACE'}
         </span>
-        <h1 className="text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">
-          Messages
+        <h1 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">
+          Chats
         </h1>
       </div>
 
-      {/* 3. Primary Action Button: + Connect Contact (High Contrast with ⌘K Badge) */}
+      {/* 2. Primary Action Button: + Connect Contact (With ⌘K Shortcut Badge) */}
       <button
         type="button"
         onClick={onOpenConnectContact}
@@ -188,7 +65,7 @@ export const SidebarHeader: React.FC<SidebarHeaderProps> = ({
       >
         <span className="flex items-center gap-2">
           <UserPlus className="w-4 h-4" />
-          <span>New message</span>
+          <span>Connect Contact</span>
         </span>
         <span className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-300 dark:bg-zinc-200 dark:text-zinc-700 font-mono font-medium">
           ⌘K
@@ -234,12 +111,12 @@ export const SidebarHeader: React.FC<SidebarHeaderProps> = ({
         </div>
       )}
 
-      {/* 4. Filter Pills */}
+      {/* 3. Filter Pills */}
       <div className="flex items-center gap-1.5 text-xs">
         <button
           type="button"
           onClick={() => setInboxFilter('all')}
-          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 ${
+          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 cursor-pointer ${
             inboxFilter === 'all'
               ? 'bg-zinc-900 text-white dark:bg-zinc-800 dark:text-white'
               : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800/50'
@@ -254,7 +131,7 @@ export const SidebarHeader: React.FC<SidebarHeaderProps> = ({
         <button
           type="button"
           onClick={() => setInboxFilter('unread')}
-          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
             inboxFilter === 'unread'
               ? 'bg-zinc-900 text-white dark:bg-zinc-800 dark:text-white'
               : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800/50'
@@ -266,7 +143,7 @@ export const SidebarHeader: React.FC<SidebarHeaderProps> = ({
         <button
           type="button"
           onClick={() => setInboxFilter('friends')}
-          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
             inboxFilter === 'friends'
               ? 'bg-zinc-900 text-white dark:bg-zinc-800 dark:text-white'
               : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800/50'
@@ -278,7 +155,7 @@ export const SidebarHeader: React.FC<SidebarHeaderProps> = ({
         <button
           type="button"
           onClick={() => setInboxFilter('letterbox')}
-          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1 ${
+          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1 cursor-pointer ${
             inboxFilter === 'inquiries' || inboxFilter === 'letterbox'
               ? 'bg-zinc-900 text-white dark:bg-zinc-800 dark:text-white'
               : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800/50'
@@ -293,10 +170,11 @@ export const SidebarHeader: React.FC<SidebarHeaderProps> = ({
         </button>
       </div>
 
-      {/* 5. Minimalist Search Bar */}
+      {/* 4. Minimalist Search Bar */}
       <div className="relative">
         <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-zinc-400 dark:text-zinc-500" />
         <input
+          ref={searchInputRef as any}
           type="text"
           placeholder="Search..."
           value={searchQuery}

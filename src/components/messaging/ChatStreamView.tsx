@@ -178,7 +178,7 @@ export const ChatStreamView: React.FC<ChatStreamViewProps> = ({
                   (msg.status === 'sending' ? (
                     <Clock className="w-3 h-3 animate-spin text-zinc-400" />
                   ) : (
-                    <CheckCheck className="w-3.5 h-3.5 text-zinc-400 dark:text-zinc-500" />
+                    <CheckCheck className="w-3.5 h-3.5 text-emerald-500 dark:text-emerald-400" />
                   ))}
               </div>
             </div>
