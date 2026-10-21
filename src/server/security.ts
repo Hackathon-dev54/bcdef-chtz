@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Elastic-2.0
-// Copyright (c) 2026 Chatze Contributors (https://github.com/Hackathon-dev54/chat-web-new)
+// Copyright (c) 2026 Chatze Contributors (https://github.com/Hackathon-dev54/abcd-chatz)
 
 /**
  * Validates identifiers (conversation IDs, thread IDs, user IDs)
