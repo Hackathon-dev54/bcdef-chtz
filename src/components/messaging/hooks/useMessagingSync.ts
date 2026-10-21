@@ -31,6 +31,20 @@ export function useMessagingSync({
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [friendships, setFriendships] = useState<Friendship[]>([])
   const [streamConnected, setStreamConnected] = useState(false)
+  const [isOnline, setIsOnline] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return true
+    return localStorage.getItem('chatze_presence_online') !== 'false'
+  })
+
+  const togglePresence = () => {
+    setIsOnline((prev) => {
+      const next = !prev
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('chatze_presence_online', String(next))
+      }
+      return next
+    })
+  }
 
   const activeConvRef = useRef<Conversation | null>(null)
   activeConvRef.current = activeConv
@@ -176,8 +190,13 @@ export function useMessagingSync({
     }
   }
 
-  // Tab-Visibility Aware SSE Stream
+  // Tab-Visibility & Presence Aware SSE Stream
   useEffect(() => {
+    if (!isOnline) {
+      setStreamConnected(false)
+      return
+    }
+
     let evtSource: EventSource | null = null
     let hiddenTimeout: any = null
     let isSuspended = false
@@ -448,7 +467,7 @@ export function useMessagingSync({
       if (bc) bc.close()
       if (evtSource) evtSource.close()
     }
-  }, [currentUser.id])
+  }, [currentUser.id, isOnline])
 
   // Send Message
   const handleSendMessage = async (
@@ -526,5 +545,7 @@ export function useMessagingSync({
     runSync,
     handleSendMessage,
     activeConvRef,
+    isOnline,
+    togglePresence,
   }
 }

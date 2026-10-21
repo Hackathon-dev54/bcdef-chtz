@@ -87,6 +87,8 @@ export function MessagingApp({
     friendships,
     setFriendships,
     streamConnected,
+    isOnline,
+    togglePresence,
     loadConversations,
     runSync,
     handleSendMessage: sendMessageSync,
@@ -238,8 +240,8 @@ export function MessagingApp({
 
   return (
     <div className={`${theme === 'dark' ? 'dark' : ''} flex flex-col h-screen w-full bg-white dark:bg-[#09090b] text-zinc-900 dark:text-zinc-100 overflow-hidden font-sans select-none transition-colors`}>
-      {/* Modern Top Progress Pulse (Shows only during initial background sync) */}
-      {!streamConnected && (
+      {/* Modern Top Progress Pulse (Shows only during active reconnect/sync while Online) */}
+      {isOnline && !streamConnected && (
         <div className="fixed top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-zinc-950 dark:via-zinc-100 to-transparent animate-pulse z-50 pointer-events-none" />
       )}
 
@@ -261,6 +263,8 @@ export function MessagingApp({
           setIsSettingsOpen(false)
           searchInputRef.current?.focus()
         }}
+        isOnline={isOnline}
+        onTogglePresence={togglePresence}
       />
 
       {!isSettingsOpen && <NotificationPermissionBanner userHandle={currentUser.handle} />}
@@ -355,6 +359,8 @@ export function MessagingApp({
                 currentUser={currentUser}
                 currentDisplayName={currentDisplayName}
                 onOpenProfile={() => setIsSettingsOpen(true)}
+                isOnline={isOnline}
+                onTogglePresence={togglePresence}
               />
             </aside>
 

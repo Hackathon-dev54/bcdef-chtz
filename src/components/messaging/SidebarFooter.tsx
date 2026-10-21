@@ -4,12 +4,16 @@ interface SidebarFooterProps {
   currentUser: { handle: string; display_name: string }
   currentDisplayName: string
   onOpenProfile: () => void
+  isOnline?: boolean
+  onTogglePresence?: () => void
 }
 
 export const SidebarFooter: React.FC<SidebarFooterProps> = ({
   currentUser,
   currentDisplayName,
   onOpenProfile,
+  isOnline = true,
+  onTogglePresence,
 }) => {
   const userInitials = (currentDisplayName || currentUser.display_name || 'ME')
     .slice(0, 2)
@@ -31,9 +35,22 @@ export const SidebarFooter: React.FC<SidebarFooterProps> = ({
             <span className="truncate">{currentDisplayName || currentUser.display_name}</span>
             <ChevronDown className="w-3 h-3 text-zinc-400 shrink-0" />
           </div>
-          <div className="flex items-center gap-1.5 text-[10px] text-zinc-500 dark:text-zinc-400">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-            <span>Available</span>
+          <div
+            onClick={(e) => {
+              if (onTogglePresence) {
+                e.stopPropagation()
+                onTogglePresence()
+              }
+            }}
+            className="flex items-center gap-1.5 text-[10px] text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors cursor-pointer"
+            title={isOnline ? 'Online (Click to go Offline)' : 'Offline (Click to go Online)'}
+          >
+            <span
+              className={`w-1.5 h-1.5 rounded-full ${
+                isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-zinc-400 dark:bg-zinc-500'
+              }`}
+            />
+            <span>{isOnline ? 'Available' : 'Offline'}</span>
           </div>
         </div>
       </div>
