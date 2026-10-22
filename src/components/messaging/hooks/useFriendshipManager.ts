@@ -1,6 +1,11 @@
 import React, { useState, useMemo } from 'react'
 import { Friendship, Conversation } from '../types'
-import { saveLocalFriendships, saveLocalConversations } from '../../../lib/db'
+import {
+  saveLocalFriendships,
+  saveLocalConversations,
+  deleteLocalConversation,
+  deleteLocalFriendship,
+} from '../../../lib/db'
 import { getAuthHeaders } from '../authUtils'
 
 export function useFriendshipManager({
@@ -124,21 +129,24 @@ export function useFriendshipManager({
   // Decline Inbound Request
   const handleRejectFriendRequest = async (remoteHandle: string, blockDomain = false, remoteInstanceUrl = '') => {
     try {
+      const clean = remoteHandle.replace(/^@/, '').trim().toLowerCase()
       setFriendships((prev) => {
-        const updated = prev.filter((f) => f.remote_handle !== remoteHandle)
+        const updated = prev.filter((f) => f.remote_handle.toLowerCase() !== clean)
         saveLocalFriendships(updated).catch(() => {})
         return updated
       })
       setConversations((prev) => {
-        const updated = prev.filter((c) => c.otherUser.username !== remoteHandle)
+        const updated = prev.filter((c) => c.otherUser.username.toLowerCase() !== clean && c.id !== 'conv_' + clean)
         saveLocalConversations(updated).catch(() => {})
         return updated
       })
+      deleteLocalFriendship(clean).catch(() => {})
+      deleteLocalConversation(clean).catch(() => {})
 
       await fetch('/api/federation/requests/reject', {
         method: 'POST',
         headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
-        body: JSON.stringify({ remoteHandle, blockDomain, remoteInstanceUrl }),
+        body: JSON.stringify({ remoteHandle: clean, blockDomain, remoteInstanceUrl }),
       })
     } catch (err) {
       console.error('Reject error', err)
@@ -164,6 +172,8 @@ export function useFriendshipManager({
         saveLocalConversations(updated).catch(() => {})
         return updated
       })
+      deleteLocalFriendship(cleanHandle).catch(() => {})
+      deleteLocalConversation(cleanHandle).catch(() => {})
       setActiveConv(null)
 
       // 2. Dispatch cancel request to backend

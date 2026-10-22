@@ -157,14 +157,32 @@ export async function getLocalConversations(): Promise<LocalConversation[]> {
 }
 
 export async function saveLocalConversations(convs: LocalConversation[]): Promise<void> {
-  if (!convs || convs.length === 0) return
   try {
     const db = await getDB()
     const tx = db.transaction('conversations', 'readwrite')
     const store = tx.objectStore('conversations')
 
-    for (const c of convs) {
-      store.put(c)
+    if (!convs || convs.length === 0) {
+      store.clear()
+      return new Promise((resolve, reject) => {
+        tx.oncomplete = () => resolve()
+        tx.onerror = () => reject(tx.error)
+      })
+    }
+
+    const currentKeysReq = store.getAllKeys()
+    currentKeysReq.onsuccess = () => {
+      const existingKeys = new Set(currentKeysReq.result as string[])
+      const newKeys = new Set(convs.map((c) => c.id))
+
+      for (const key of existingKeys) {
+        if (!newKeys.has(key)) {
+          store.delete(key)
+        }
+      }
+      for (const c of convs) {
+        store.put(c)
+      }
     }
 
     return new Promise((resolve, reject) => {
@@ -173,6 +191,38 @@ export async function saveLocalConversations(convs: LocalConversation[]): Promis
     })
   } catch (err) {
     console.warn('[IndexedDB saveLocalConversations warning]', err)
+  }
+}
+
+export async function deleteLocalConversation(handleOrId: string): Promise<void> {
+  const clean = handleOrId.replace(/^@/, '').replace(/^conv_/, '').trim().toLowerCase()
+  try {
+    const db = await getDB()
+    const tx = db.transaction('conversations', 'readwrite')
+    const store = tx.objectStore('conversations')
+
+    const req = store.getAll()
+    req.onsuccess = () => {
+      const all: LocalConversation[] = req.result || []
+      for (const c of all) {
+        const cHandle = (c.otherUser?.username || '').replace(/^@/, '').toLowerCase()
+        if (
+          c.id === handleOrId ||
+          c.id === 'conv_' + clean ||
+          c.id === clean ||
+          cHandle === clean
+        ) {
+          store.delete(c.id)
+        }
+      }
+    }
+
+    return new Promise((resolve, reject) => {
+      tx.oncomplete = () => resolve()
+      tx.onerror = () => reject(tx.error)
+    })
+  } catch (err) {
+    console.warn('[IndexedDB deleteLocalConversation warning]', err)
   }
 }
 
@@ -201,14 +251,32 @@ export async function getLocalFriendships(): Promise<LocalFriendship[]> {
 }
 
 export async function saveLocalFriendships(friendships: LocalFriendship[]): Promise<void> {
-  if (!friendships || friendships.length === 0) return
   try {
     const db = await getDB()
     const tx = db.transaction('friendships', 'readwrite')
     const store = tx.objectStore('friendships')
 
-    for (const f of friendships) {
-      store.put(f)
+    if (!friendships || friendships.length === 0) {
+      store.clear()
+      return new Promise((resolve, reject) => {
+        tx.oncomplete = () => resolve()
+        tx.onerror = () => reject(tx.error)
+      })
+    }
+
+    const currentKeysReq = store.getAllKeys()
+    currentKeysReq.onsuccess = () => {
+      const existingKeys = new Set(currentKeysReq.result as string[])
+      const newKeys = new Set(friendships.map((f) => f.id))
+
+      for (const key of existingKeys) {
+        if (!newKeys.has(key)) {
+          store.delete(key)
+        }
+      }
+      for (const f of friendships) {
+        store.put(f)
+      }
     }
 
     return new Promise((resolve, reject) => {
@@ -217,6 +285,33 @@ export async function saveLocalFriendships(friendships: LocalFriendship[]): Prom
     })
   } catch (err) {
     console.warn('[IndexedDB saveLocalFriendships warning]', err)
+  }
+}
+
+export async function deleteLocalFriendship(remoteHandleOrId: string): Promise<void> {
+  const clean = remoteHandleOrId.replace(/^@/, '').trim().toLowerCase()
+  try {
+    const db = await getDB()
+    const tx = db.transaction('friendships', 'readwrite')
+    const store = tx.objectStore('friendships')
+
+    const req = store.getAll()
+    req.onsuccess = () => {
+      const all: LocalFriendship[] = req.result || []
+      for (const f of all) {
+        const fHandle = (f.remote_handle || '').replace(/^@/, '').toLowerCase()
+        if (f.id === remoteHandleOrId || fHandle === clean) {
+          store.delete(f.id)
+        }
+      }
+    }
+
+    return new Promise((resolve, reject) => {
+      tx.oncomplete = () => resolve()
+      tx.onerror = () => reject(tx.error)
+    })
+  } catch (err) {
+    console.warn('[IndexedDB deleteLocalFriendship warning]', err)
   }
 }
 

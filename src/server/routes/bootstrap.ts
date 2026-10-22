@@ -65,6 +65,7 @@ bootstrapRoutes.get('/api/bootstrap', async (c) => {
   let conversations: any[] = []
   let inquiries: any[] = []
   let friendships: any[] = []
+  let d1Success = false
 
   if (db) {
     try {
@@ -148,13 +149,15 @@ bootstrapRoutes.get('/api/bootstrap', async (c) => {
       if (Array.isArray(friendRows?.results)) {
         friendships = friendRows.results
       }
+
+      d1Success = true
     } catch (err: any) {
       console.warn('[D1 Bootstrap Warning, falling back to memory]', err?.message)
     }
   }
 
-  // Memory fallback if DB was empty or failed
-  if (conversations.length === 0) {
+  // Memory fallback ONLY if D1 was unavailable or failed
+  if (!d1Success) {
     const viewerHandle = (viewer?.handle || '').toLowerCase().replace(/^@/, '')
     const viewerId = viewer?.id || ''
     const isBusinessOwner = profile.accountType === 'business' && (!viewer || viewer.role === 'admin' || viewer.id === adminUser?.id)
@@ -177,13 +180,8 @@ bootstrapRoutes.get('/api/bootstrap', async (c) => {
             }
           : null,
       }))
-  }
 
-  if (inquiries.length === 0) {
     inquiries = Array.from(memoryStore.inquiries.values()).sort((a, b) => b.created_at - a.created_at)
-  }
-
-  if (friendships.length === 0) {
     friendships = Array.from(memoryStore.friendships.values()).sort((a, b) => b.created_at - a.created_at)
   }
 

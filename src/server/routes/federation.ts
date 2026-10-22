@@ -490,12 +490,18 @@ federationRoutes.post('/api/federation/requests/cancel', async (c) => {
 
     // 1. Clean local memory store
     for (const [id, f] of memoryStore.friendships) {
-      if (f.remote_handle === cleanHandle) {
+      const fHandle = (f.remote_handle || '').replace(/^@/, '').trim().toLowerCase()
+      if (fHandle === cleanHandle) {
         if (!foundUrl) foundUrl = f.remote_instance_url
         memoryStore.friendships.delete(id)
       }
     }
-    memoryStore.conversations.delete('conv_' + cleanHandle)
+    for (const [cId, conv] of memoryStore.conversations) {
+      const cHandle = (conv.remote_handle || conv.user_b || '').replace(/^@/, '').trim().toLowerCase()
+      if (cId === 'conv_' + cleanHandle || cId === cleanHandle || cHandle === cleanHandle) {
+        memoryStore.conversations.delete(cId)
+      }
+    }
 
     // 2. Clean local D1 database
     let actualMyHandle = myHandle || ''
@@ -503,11 +509,11 @@ federationRoutes.post('/api/federation/requests/cancel', async (c) => {
       try {
         await ensureD1Database(db)
         if (!foundUrl) {
-          const row: any = await db.prepare("SELECT remote_instance_url FROM federation_friendships WHERE remote_handle = ? LIMIT 1").bind(cleanHandle).first()
+          const row: any = await db.prepare("SELECT remote_instance_url FROM federation_friendships WHERE LOWER(REPLACE(remote_handle, '@', '')) = ? LIMIT 1").bind(cleanHandle).first()
           if (row) foundUrl = row.remote_instance_url
         }
-        await db.prepare("DELETE FROM federation_friendships WHERE remote_handle = ?").bind(cleanHandle).run()
-        await db.prepare("DELETE FROM conversations WHERE id = ?").bind('conv_' + cleanHandle).run()
+        await db.prepare("DELETE FROM federation_friendships WHERE LOWER(REPLACE(remote_handle, '@', '')) = ?").bind(cleanHandle).run()
+        await db.prepare("DELETE FROM conversations WHERE id = ('conv_' || ?) OR id = ? OR LOWER(REPLACE(remote_handle, '@', '')) = ? OR LOWER(REPLACE(user_b, '@', '')) = ?").bind(cleanHandle, cleanHandle, cleanHandle, cleanHandle).run()
         if (!actualMyHandle) {
           const adminRow: any = await db.prepare("SELECT handle FROM users WHERE role = 'admin' LIMIT 1").first()
           if (adminRow) actualMyHandle = adminRow.handle
@@ -556,21 +562,24 @@ federationRoutes.post('/api/federation/v1/requests/cancel', async (c) => {
 
     // 1. Clean from memoryStore
     for (const [id, f] of memoryStore.friendships) {
-      if (f.remote_handle === cleanHandle && f.direction === 'incoming' && f.status === 'pending') {
+      const fHandle = (f.remote_handle || '').replace(/^@/, '').trim().toLowerCase()
+      if (fHandle === cleanHandle && f.direction === 'incoming' && f.status === 'pending') {
         memoryStore.friendships.delete(id)
       }
     }
-    const conv = memoryStore.conversations.get('conv_' + cleanHandle)
-    if (conv && conv.status === 'pending') {
-      memoryStore.conversations.delete('conv_' + cleanHandle)
+    for (const [cId, conv] of memoryStore.conversations) {
+      const cHandle = (conv.remote_handle || conv.user_b || '').replace(/^@/, '').trim().toLowerCase()
+      if ((cId === 'conv_' + cleanHandle || cHandle === cleanHandle) && conv.status === 'pending') {
+        memoryStore.conversations.delete(cId)
+      }
     }
 
     // 2. Clean from D1
     if (db) {
       try {
         await ensureD1Database(db)
-        await db.prepare("DELETE FROM federation_friendships WHERE remote_handle = ? AND direction = 'incoming' AND status = 'pending'").bind(cleanHandle).run()
-        await db.prepare("DELETE FROM conversations WHERE id = ? AND status = 'pending'").bind('conv_' + cleanHandle).run()
+        await db.prepare("DELETE FROM federation_friendships WHERE LOWER(REPLACE(remote_handle, '@', '')) = ? AND direction = 'incoming' AND status = 'pending'").bind(cleanHandle).run()
+        await db.prepare("DELETE FROM conversations WHERE (id = ('conv_' || ?) OR id = ? OR LOWER(REPLACE(remote_handle, '@', '')) = ? OR LOWER(REPLACE(user_b, '@', '')) = ?) AND status = 'pending'").bind(cleanHandle, cleanHandle, cleanHandle, cleanHandle).run()
       } catch (d1Err: any) {
         console.warn('[D1 Inbound Cancel Warning]', d1Err?.message)
       }

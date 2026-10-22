@@ -7,6 +7,8 @@ import {
   saveLocalConversations,
   getLocalFriendships,
   saveLocalFriendships,
+  deleteLocalConversation,
+  deleteLocalFriendship,
   getLocalMeta,
   setLocalMeta,
 } from '../../../lib/db'
@@ -87,7 +89,11 @@ export function useMessagingSync({
             setActiveConv(data.conversations[0])
           } else if (activeConvRef.current) {
             const updated = data.conversations.find((c: any) => c.id === activeConvRef.current?.id)
-            if (updated) setActiveConv(updated)
+            if (updated) {
+              setActiveConv(updated)
+            } else {
+              setActiveConv(data.conversations.length > 0 ? data.conversations[0] : null)
+            }
           }
         }
         if (data.friendships) {
@@ -457,6 +463,8 @@ export function useMessagingSync({
               saveLocalConversations(updated).catch(() => {})
               return updated
             })
+            deleteLocalFriendship(cleanHandle).catch(() => {})
+            deleteLocalConversation(cleanHandle).catch(() => {})
             if (
               activeConvRef.current &&
               (activeConvRef.current.otherUser.username.toLowerCase() === cleanHandle ||
