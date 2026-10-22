@@ -5,6 +5,7 @@ import { Hono } from 'hono'
 import { ensureD1Database } from '../db'
 import { memoryStore, validateSession } from '../store'
 import { resolveOtherUser } from './conversations'
+import { generatePin } from './profile'
 import type { Bindings } from '../types'
 
 const bootstrapRoutes = new Hono<{ Bindings: Bindings }>()
@@ -107,6 +108,16 @@ bootstrapRoutes.get('/api/bootstrap', async (c) => {
       }
 
       shopDisplayName = profile.displayName || shopDisplayName
+
+      if (!profile.friendPin) {
+        profile.friendPin = generatePin()
+        memoryStore.config.set('friend_pin', profile.friendPin)
+        if (db) {
+          try {
+            await db.prepare("INSERT OR REPLACE INTO system_config (key, value) VALUES ('friend_pin', ?)").bind(profile.friendPin).run()
+          } catch {}
+        }
+      }
 
       // Map conversations
       if (Array.isArray(convRows?.results)) {

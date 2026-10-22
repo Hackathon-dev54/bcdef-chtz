@@ -3,7 +3,18 @@ import { ensureD1Database, normalizeUrl } from '../db'
 import { ensureServerKeyPair, signPayload, getExportedPublicKeyBase64 } from '../crypto'
 import { memoryStore, emitUserEvent, broadcastAllStreams } from '../store'
 import { extractRootDomain } from '../domain'
+import { checkRateLimit } from '../security'
 import type { Bindings, MemFriendship, MemConversation } from '../types'
+
+function matchesFriendPin(provided: string, expected: string): boolean {
+  if (!provided || !expected) return false
+  const p = provided.toUpperCase().replace(/[^A-Z0-9]/g, '')
+  const e = expected.toUpperCase().replace(/[^A-Z0-9]/g, '')
+  if (p === e) return true
+  const pStrip = p.replace(/^NP/, '')
+  const eStrip = e.replace(/^NP/, '')
+  return pStrip.length > 0 && pStrip === eStrip
+}
 
 const federationRoutes = new Hono<{ Bindings: Bindings }>()
 
@@ -175,7 +186,13 @@ federationRoutes.post('/api/federation/v1/requests', async (c) => {
       return c.json({ error: `Origin root domain '${rootDomain}' is blocked by this instance.` }, 403)
     }
 
-    // Security Check 2: Privacy Mode & Friend PIN check
+    // Security Check 2: Privacy Mode & Friend PIN check (Rate-limited against brute-force)
+    const clientIp = c.req.header('cf-connecting-ip') || c.req.header('x-forwarded-for') || 'local'
+    const pinRate = checkRateLimit(`pin_try_${clientIp}`, 10, 300000) // max 10 attempts per 5 mins
+    if (!pinRate.allowed) {
+      return c.json({ error: 'Too many friend request attempts. Please wait 5 minutes.', code: 'RATE_LIMITED' }, 429)
+    }
+
     let privacyMode = memoryStore.config.get('privacy_mode') || 'open'
     let accountType = memoryStore.config.get('account_type') || 'personal'
     let configuredPin = memoryStore.config.get('friend_pin') || ''
@@ -195,7 +212,7 @@ federationRoutes.post('/api/federation/v1/requests', async (c) => {
     if (accountType === 'business') {
       const providedPin = (pin || '').trim()
       if (!configuredPin) configuredPin = 'NP-7429'
-      if (!providedPin || providedPin.toUpperCase() !== configuredPin.toUpperCase()) {
+      if (!matchesFriendPin(providedPin, configuredPin)) {
         const originUrl = c.req.url.replace(/\/api\/.*$/, '')
         return c.json({
           error: 'This business account is set to Private for Friend Requests. Customers can send an inquiry note via the public Letterbox portfolio, or provide a private invite PIN.',
@@ -213,7 +230,7 @@ federationRoutes.post('/api/federation/v1/requests', async (c) => {
         if (!configuredPin) {
           configuredPin = 'NP-7429'
         }
-        if (!providedPin || providedPin.toUpperCase() !== configuredPin.toUpperCase()) {
+        if (!matchesFriendPin(providedPin, configuredPin)) {
           return c.json({
             error: 'Invalid or missing Friend PIN. This personal account requires a valid PIN or QR code handshake.',
             code: 'PIN_REQUIRED',

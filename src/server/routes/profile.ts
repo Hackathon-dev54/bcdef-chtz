@@ -2,13 +2,26 @@ import { Hono } from 'hono'
 import { ensureD1Database } from '../db'
 import { memoryStore } from '../store'
 import { getCoreDb, getD1DatabaseSizeMB, SHARD_HARDCAP_MB, MAX_VAULT_SHARDS } from '../sharding'
+import { checkRateLimit } from '../security'
 import type { Bindings } from '../types'
 
 const profileRoutes = new Hono<{ Bindings: Bindings }>()
 
-function generatePin(): string {
-  const digits = Math.floor(1000 + Math.random() * 9000).toString()
-  return `NP-${digits}`
+// Human-friendly Crockford Base32 alphabet (excludes 0, O, 1, I, L to prevent confusion)
+const PIN_ALPHABET = '23456789ABCDEFGHJKMNPQRSTUVWXYZ'
+
+export function generatePin(): string {
+  const bytes = new Uint8Array(8)
+  crypto.getRandomValues(bytes)
+  let part1 = ''
+  let part2 = ''
+  for (let i = 0; i < 4; i++) {
+    part1 += PIN_ALPHABET[bytes[i] % PIN_ALPHABET.length]
+  }
+  for (let i = 4; i < 8; i++) {
+    part2 += PIN_ALPHABET[bytes[i] % PIN_ALPHABET.length]
+  }
+  return `NP-${part1}-${part2}`
 }
 
 const MAX_FAQS = 50
@@ -250,8 +263,14 @@ profileRoutes.post('/api/profile', async (c) => {
   }
 })
 
-// POST Regenerate Friend PIN
-profileRoutes.post('/api/profile/pin/regenerate', async (c) => {
+// POST Regenerate Friend PIN (Cryptographically secure WebCrypto Base32)
+const handleRegeneratePin = async (c: any) => {
+  const clientIp = c.req.header('cf-connecting-ip') || c.req.header('x-forwarded-for') || 'local'
+  const rate = checkRateLimit(`pin_regen_${clientIp}`, 10, 60000)
+  if (!rate.allowed) {
+    return c.json({ error: 'Too many PIN change requests. Please wait a minute.' }, 429)
+  }
+
   const newPin = generatePin()
   memoryStore.config.set('friend_pin', newPin)
   const db = c.env?.DB
@@ -259,10 +278,15 @@ profileRoutes.post('/api/profile/pin/regenerate', async (c) => {
     try {
       await ensureD1Database(db)
       await db.prepare("INSERT OR REPLACE INTO system_config (key, value) VALUES ('friend_pin', ?)").bind(newPin).run()
-    } catch {}
+    } catch (err: any) {
+      console.warn('[D1 PIN Update Warning]', err?.message)
+    }
   }
   return c.json({ success: true, friendPin: newPin })
-})
+}
+
+profileRoutes.post('/api/profile/pin/regenerate', handleRegeneratePin)
+profileRoutes.post('/api/auth/regenerate-pin', handleRegeneratePin)
 
 // GET /api/system/shards: Real-Time D1 Shard & Storage Quota Health
 profileRoutes.get('/api/system/shards', async (c) => {

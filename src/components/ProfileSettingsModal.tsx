@@ -13,6 +13,7 @@ import {
   HubSettingsTab,
   EdgeStorageTab,
 } from './profile'
+import { getAuthHeaders } from './messaging/authUtils'
 
 export type { ProfileData, ProfileSettingsModalProps }
 export { BUSINESS_CATEGORIES, faqsToEditableText }
@@ -173,13 +174,20 @@ export function ProfileSettingsModal({
 
   const handleRegeneratePin = async () => {
     setRegeneratingPin(true)
+    setErrorMsg('')
     try {
-      const res = await fetch('/api/auth/regenerate-pin', { method: 'POST' })
+      const res = await fetch('/api/profile/pin/regenerate', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+      })
       if (res.ok) {
         const data = await res.json()
         if (data.friendPin) {
           setFriendPin(data.friendPin)
         }
+      } else {
+        const errData = await res.json().catch(() => null)
+        setErrorMsg(errData?.error || 'Failed to change PIN')
       }
     } catch {
       setErrorMsg('Failed to change PIN')
