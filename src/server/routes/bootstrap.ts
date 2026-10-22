@@ -119,6 +119,12 @@ bootstrapRoutes.get('/api/bootstrap', async (c) => {
         }
       }
 
+      if (db && !memoryStore.config.get('privacy_mode')) {
+        try {
+          await db.prepare("INSERT OR IGNORE INTO system_config (key, value) VALUES ('privacy_mode', ?)").bind(profile.privacyMode).run()
+        } catch {}
+      }
+
       // Map conversations
       if (Array.isArray(convRows?.results)) {
         conversations = convRows.results.map((row: any) => ({

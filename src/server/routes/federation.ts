@@ -193,51 +193,46 @@ federationRoutes.post('/api/federation/v1/requests', async (c) => {
       return c.json({ error: 'Too many friend request attempts. Please wait 5 minutes.', code: 'RATE_LIMITED' }, 429)
     }
 
-    let privacyMode = memoryStore.config.get('privacy_mode') || 'open'
-    let accountType = memoryStore.config.get('account_type') || 'personal'
+    let privacyMode = (memoryStore.config.get('privacy_mode') as 'open' | 'pin_only' | 'closed') || 'pin_only'
+    let accountType = (memoryStore.config.get('account_type') as 'personal' | 'business') || 'personal'
     let configuredPin = memoryStore.config.get('friend_pin') || ''
     if (db) {
       try {
         const pModeRow: any = await db.prepare("SELECT value FROM system_config WHERE key = 'privacy_mode'").first()
-        if (pModeRow?.value) privacyMode = pModeRow.value
+        if (pModeRow?.value) privacyMode = pModeRow.value as any
         const aTypeRow: any = await db.prepare("SELECT value FROM system_config WHERE key = 'account_type'").first()
-        if (aTypeRow?.value) accountType = aTypeRow.value
+        if (aTypeRow?.value) accountType = aTypeRow.value as any
         const pinRow: any = await db.prepare("SELECT value FROM system_config WHERE key = 'friend_pin'").first()
         if (pinRow?.value) configuredPin = pinRow.value
       } catch {}
     }
 
-    // Business accounts: Incoming friend requests are PRIVATE ONLY (PIN-only)
-    // to protect Edge resources and prevent spam. Customers connect via the public Letterbox portfolio!
-    if (accountType === 'business') {
+    // Security Check 2: Privacy Mode & Friend PIN check (Strictly enforced for both Personal & Business)
+    if (privacyMode === 'closed') {
+      return c.json({
+        error: 'This account has closed incoming friend requests (Incognito Mode).',
+        code: 'FRIEND_REQUESTS_CLOSED',
+      }, 403)
+    }
+
+    if (privacyMode === 'pin_only') {
       const providedPin = (pin || '').trim()
-      if (!configuredPin) configuredPin = 'NP-7429'
+      if (!configuredPin) {
+        configuredPin = 'NP-7429'
+      }
       if (!matchesFriendPin(providedPin, configuredPin)) {
         const originUrl = c.req.url.replace(/\/api\/.*$/, '')
+        const isBiz = accountType === 'business'
         return c.json({
-          error: 'This business account is set to Private for Friend Requests. Customers can send an inquiry note via the public Letterbox portfolio, or provide a private invite PIN.',
-          code: 'BUSINESS_PRIVATE_FRIEND_ONLY',
-          letterboxUrl: `${originUrl}/shop`,
+          error: isBiz
+            ? 'This business account is PIN-Protected for Friend Requests. Please enter the private invite PIN, or drop an inquiry note via the Letterbox.'
+            : 'Invalid or missing Friend PIN. This account requires a valid PIN or QR code handshake.',
+          code: isBiz ? 'BUSINESS_PRIVATE_FRIEND_ONLY' : 'PIN_REQUIRED',
+          letterboxUrl: isBiz ? `${originUrl}/shop` : undefined,
         }, 403)
       }
-    } else {
-      if (privacyMode === 'closed') {
-        return c.json({ error: 'This user has closed incoming friend requests (Incognito Mode).' }, 403)
-      }
-
-      if (privacyMode === 'pin_only') {
-        const providedPin = (pin || '').trim()
-        if (!configuredPin) {
-          configuredPin = 'NP-7429'
-        }
-        if (!matchesFriendPin(providedPin, configuredPin)) {
-          return c.json({
-            error: 'Invalid or missing Friend PIN. This personal account requires a valid PIN or QR code handshake.',
-            code: 'PIN_REQUIRED',
-          }, 403)
-        }
-      }
     }
+    // When privacyMode === 'open', requests proceed without a PIN requirement!
 
     // Security Check 3: Max 5 Pending Requests Queue Ceiling
     let pendingCount = 0

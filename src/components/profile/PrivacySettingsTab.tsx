@@ -34,26 +34,7 @@ export const PrivacySettingsTab: React.FC<PrivacySettingsTabProps> = ({
 }) => {
   return (
     <div className="space-y-4 text-xs select-none">
-      {/* Business Notice if in Business mode */}
-      {accountType === 'business' ? (
-        <div className="p-4 bg-zinc-50 dark:bg-zinc-900/60 border border-zinc-200 dark:border-zinc-800 rounded-2xl space-y-2">
-          <div className="flex items-center gap-2 text-zinc-900 dark:text-zinc-100 font-bold">
-            <Shield className="w-4 h-4 text-zinc-700 dark:text-zinc-300" />
-            <span>Business Privacy Protection Active</span>
-          </div>
-          <p className="text-[11px] text-zinc-600 dark:text-zinc-400 leading-relaxed">
-            To protect your Cloudflare Worker quota from bot attacks and unwanted spam,
-            incoming stranger friend requests are <strong>Private Only (PIN-Protected)</strong>.
-          </p>
-          <ul className="text-[11px] text-zinc-500 dark:text-zinc-400 list-disc list-inside space-y-0.5">
-            <li>Customers connect with you via your public <strong>Letterbox Portfolio</strong> without friend requests.</li>
-            <li>You can still manually add any friend as private directly from your dashboard.</li>
-            <li>Trusted business partners can connect if you give them your Private Friend PIN.</li>
-          </ul>
-        </div>
-      ) : null}
-
-      {/* Personal Friend PIN Card */}
+      {/* Personal / Business Friend PIN Card */}
       <div className="p-4 bg-zinc-50 dark:bg-zinc-900/60 border border-zinc-200 dark:border-zinc-800 rounded-2xl space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -75,7 +56,7 @@ export const PrivacySettingsTab: React.FC<PrivacySettingsTabProps> = ({
 
         <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
           {accountType === 'business'
-            ? 'Share this PIN only with trusted close partners or suppliers who need a direct 1-on-1 friend channel.'
+            ? 'Share this PIN with trusted partners or suppliers who need a direct 1-on-1 friend channel.'
             : 'Give this PIN to friends you trust. When Privacy Mode is set to PIN Only, strangers and bots cannot add you without it.'}
         </p>
 
@@ -94,90 +75,88 @@ export const PrivacySettingsTab: React.FC<PrivacySettingsTabProps> = ({
         </div>
       </div>
 
-      {/* Privacy Mode Selector (Only configurable if personal) */}
-      {accountType === 'personal' && (
+      {/* Privacy Mode Selector (Available to all account types) */}
+      <div className="space-y-2">
+        <label className="font-bold text-zinc-700 dark:text-zinc-300 block text-[11px] uppercase tracking-wider">
+          Who Can Send You Friend Requests?
+        </label>
         <div className="space-y-2">
-          <label className="font-bold text-zinc-700 dark:text-zinc-300 block text-[11px] uppercase tracking-wider">
-            Who Can Send You Friend Requests?
+          <label
+            className={`p-3.5 rounded-2xl border flex items-start gap-3 cursor-pointer transition-all ${
+              privacyMode === 'pin_only'
+                ? 'bg-zinc-100 dark:bg-zinc-800 border-zinc-900 dark:border-white shadow-xs'
+                : 'bg-white dark:bg-zinc-900/60 border-zinc-200 dark:border-zinc-800 hover:border-zinc-400 dark:hover:border-zinc-600'
+            }`}
+          >
+            <input
+              type="radio"
+              name="privacyMode"
+              value="pin_only"
+              checked={privacyMode === 'pin_only'}
+              onChange={() => setPrivacyMode('pin_only')}
+              className="mt-0.5 accent-zinc-900 dark:accent-white cursor-pointer"
+            />
+            <div className="space-y-0.5">
+              <span className="font-bold text-zinc-900 dark:text-zinc-100 block">
+                🔒 PIN Protected (Recommended)
+              </span>
+              <span className="text-[11px] text-zinc-500 dark:text-zinc-400 block leading-relaxed">
+                Only people who have your PIN or scan your QR code can add you. Blocks 100% of blind bots.
+              </span>
+            </div>
           </label>
-          <div className="space-y-2">
-            <label
-              className={`p-3.5 rounded-2xl border flex items-start gap-3 cursor-pointer transition-all ${
-                privacyMode === 'pin_only'
-                  ? 'bg-zinc-100 dark:bg-zinc-800 border-zinc-900 dark:border-white shadow-xs'
-                  : 'bg-white dark:bg-zinc-900/60 border-zinc-200 dark:border-zinc-800 hover:border-zinc-400 dark:hover:border-zinc-600'
-              }`}
-            >
-              <input
-                type="radio"
-                name="privacyMode"
-                value="pin_only"
-                checked={privacyMode === 'pin_only'}
-                onChange={() => setPrivacyMode('pin_only')}
-                className="mt-0.5 accent-zinc-900 dark:accent-white cursor-pointer"
-              />
-              <div className="space-y-0.5">
-                <span className="font-bold text-zinc-900 dark:text-zinc-100 block">
-                  🔒 PIN Protected (Recommended)
-                </span>
-                <span className="text-[11px] text-zinc-500 dark:text-zinc-400 block leading-relaxed">
-                  Only people who have your PIN or scan your QR code can add you. Blocks 100% of blind bots.
-                </span>
-              </div>
-            </label>
 
-            <label
-              className={`p-3.5 rounded-2xl border flex items-start gap-3 cursor-pointer transition-all ${
-                privacyMode === 'open'
-                  ? 'bg-zinc-100 dark:bg-zinc-800 border-zinc-900 dark:border-white shadow-xs'
-                  : 'bg-white dark:bg-zinc-900/60 border-zinc-200 dark:border-zinc-800 hover:border-zinc-400 dark:hover:border-zinc-600'
-              }`}
-            >
-              <input
-                type="radio"
-                name="privacyMode"
-                value="open"
-                checked={privacyMode === 'open'}
-                onChange={() => setPrivacyMode('open')}
-                className="mt-0.5 accent-zinc-900 dark:accent-white cursor-pointer"
-              />
-              <div className="space-y-0.5">
-                <span className="font-bold text-zinc-900 dark:text-zinc-100 block">
-                  🌐 Open Federation (Public Search)
-                </span>
-                <span className="text-[11px] text-zinc-500 dark:text-zinc-400 block leading-relaxed">
-                  Anyone who knows your @handle can send a friend request. (Subject to max 5 pending queue cap).
-                </span>
-              </div>
-            </label>
+          <label
+            className={`p-3.5 rounded-2xl border flex items-start gap-3 cursor-pointer transition-all ${
+              privacyMode === 'open'
+                ? 'bg-zinc-100 dark:bg-zinc-800 border-zinc-900 dark:border-white shadow-xs'
+                : 'bg-white dark:bg-zinc-900/60 border-zinc-200 dark:border-zinc-800 hover:border-zinc-400 dark:hover:border-zinc-600'
+            }`}
+          >
+            <input
+              type="radio"
+              name="privacyMode"
+              value="open"
+              checked={privacyMode === 'open'}
+              onChange={() => setPrivacyMode('open')}
+              className="mt-0.5 accent-zinc-900 dark:accent-white cursor-pointer"
+            />
+            <div className="space-y-0.5">
+              <span className="font-bold text-zinc-900 dark:text-zinc-100 block">
+                🌐 Open Federation (Public Search)
+              </span>
+              <span className="text-[11px] text-zinc-500 dark:text-zinc-400 block leading-relaxed">
+                Anyone who knows your @handle can send a friend request. (Subject to max 5 pending queue cap).
+              </span>
+            </div>
+          </label>
 
-            <label
-              className={`p-3.5 rounded-2xl border flex items-start gap-3 cursor-pointer transition-all ${
-                privacyMode === 'closed'
-                  ? 'bg-zinc-100 dark:bg-zinc-800 border-zinc-900 dark:border-white shadow-xs'
-                  : 'bg-white dark:bg-zinc-900/60 border-zinc-200 dark:border-zinc-800 hover:border-zinc-400 dark:hover:border-zinc-600'
-              }`}
-            >
-              <input
-                type="radio"
-                name="privacyMode"
-                value="closed"
-                checked={privacyMode === 'closed'}
-                onChange={() => setPrivacyMode('closed')}
-                className="mt-0.5 accent-zinc-900 dark:accent-white cursor-pointer"
-              />
-              <div className="space-y-0.5">
-                <span className="font-bold text-zinc-900 dark:text-zinc-100 block">
-                  🚫 Closed / Incognito
-                </span>
-                <span className="text-[11px] text-zinc-500 dark:text-zinc-400 block leading-relaxed">
-                  Reject all incoming friend requests automatically. You can still send outbound requests.
-                </span>
-              </div>
-            </label>
-          </div>
+          <label
+            className={`p-3.5 rounded-2xl border flex items-start gap-3 cursor-pointer transition-all ${
+              privacyMode === 'closed'
+                ? 'bg-zinc-100 dark:bg-zinc-800 border-zinc-900 dark:border-white shadow-xs'
+                : 'bg-white dark:bg-zinc-900/60 border-zinc-200 dark:border-zinc-800 hover:border-zinc-400 dark:hover:border-zinc-600'
+            }`}
+          >
+            <input
+              type="radio"
+              name="privacyMode"
+              value="closed"
+              checked={privacyMode === 'closed'}
+              onChange={() => setPrivacyMode('closed')}
+              className="mt-0.5 accent-zinc-900 dark:accent-white cursor-pointer"
+            />
+            <div className="space-y-0.5">
+              <span className="font-bold text-zinc-900 dark:text-zinc-100 block">
+                🚫 Closed / Incognito
+              </span>
+              <span className="text-[11px] text-zinc-500 dark:text-zinc-400 block leading-relaxed">
+                Reject all incoming friend requests automatically. You can still send outbound requests.
+              </span>
+            </div>
+          </label>
         </div>
-      )}
+      </div>
 
       {/* Business Letterbox Toggle (For business accounts) */}
       {accountType === 'business' && (

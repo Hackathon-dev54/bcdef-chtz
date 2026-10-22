@@ -111,14 +111,14 @@ export const ConnectContactModal: React.FC<ConnectContactModalProps> = ({
 
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
-              <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300">Friend PIN (Optional)</label>
-              <span className="text-[10px] text-zinc-400">Anti-Spam</span>
+              <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300">Friend PIN</label>
+              <span className="text-[10px] text-zinc-400">Required if PIN-Protected</span>
             </div>
             <input
               type="text"
               value={friendPinInput}
               onChange={(e) => setFriendPinInput(e.target.value.toUpperCase())}
-              placeholder="e.g. NP-7429"
+              placeholder="e.g. NP-38Q3-3XZ8"
               className="w-full px-3.5 py-2.5 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl text-xs sm:text-sm text-zinc-900 dark:text-zinc-100 font-mono tracking-wider placeholder-zinc-400 focus:outline-none focus:border-zinc-400 dark:focus:border-zinc-600"
             />
           </div>

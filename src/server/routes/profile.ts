@@ -120,9 +120,11 @@ profileRoutes.get('/api/profile', async (c) => {
     }
   }
 
-  // For Business Accounts, friend requests are always private only (pin_only or closed)
-  if (profile.accountType === 'business' && profile.privacyMode === 'open') {
-    profile.privacyMode = 'pin_only'
+  // Ensure default privacy_mode exists in D1 (Default is pin_only)
+  if (db && !memoryStore.config.get('privacy_mode')) {
+    try {
+      await db.prepare("INSERT OR IGNORE INTO system_config (key, value) VALUES ('privacy_mode', ?)").bind(profile.privacyMode).run()
+    } catch {}
   }
 
   // Ensure default PIN exists
