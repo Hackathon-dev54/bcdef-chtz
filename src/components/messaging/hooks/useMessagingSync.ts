@@ -440,6 +440,36 @@ export function useMessagingSync({
         }
       })
 
+      evtSource.addEventListener('friendship_removed', (e) => {
+        try {
+          const payload = JSON.parse(e.data)
+          const cleanHandle = (payload.remoteHandle || '').toLowerCase().replace(/^@/, '')
+          if (cleanHandle) {
+            setFriendships((prev) => {
+              const updated = prev.filter((f) => f.remote_handle.toLowerCase() !== cleanHandle)
+              saveLocalFriendships(updated).catch(() => {})
+              return updated
+            })
+            setConversations((prev) => {
+              const updated = prev.filter(
+                (c) => c.otherUser.username.toLowerCase() !== cleanHandle && c.id !== 'conv_' + cleanHandle
+              )
+              saveLocalConversations(updated).catch(() => {})
+              return updated
+            })
+            if (
+              activeConvRef.current &&
+              (activeConvRef.current.otherUser.username.toLowerCase() === cleanHandle ||
+                activeConvRef.current.id === 'conv_' + cleanHandle)
+            ) {
+              setActiveConv(null)
+            }
+          }
+        } catch (err) {
+          console.warn('SSE friendship removed parse error', err)
+        }
+      })
+
       evtSource.addEventListener('new_customer_inquiry', () => {
         onNewInquiryRef.current()
       })

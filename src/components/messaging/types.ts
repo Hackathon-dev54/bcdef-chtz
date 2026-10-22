@@ -36,7 +36,7 @@ export interface ParsedMessage {
   text?: string
 }
 
-export type InboxFilter = 'all' | 'unread' | 'pending' | 'friends' | 'letterbox' | 'inquiries'
+export type InboxFilter = 'all' | 'unread' | 'friends' | 'letterbox' | 'requests' | 'pending' | 'inquiries'
 
 export const UNIVERSAL_QUICK_REPLIES = [
   { label: '👋 Hey there!', text: '👋 Hey! How are you doing?' },

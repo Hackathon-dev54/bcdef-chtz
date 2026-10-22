@@ -1,5 +1,5 @@
 import React from 'react'
-import { Clock, ShieldCheck, Maximize2, CheckCheck, ArrowDown } from 'lucide-react'
+import { Clock, ShieldCheck, Maximize2, CheckCheck, ArrowDown, Trash2 } from 'lucide-react'
 import type { Conversation, ChatMessage } from './types'
 import { getOptimizedImageUrl, parseMessageContent } from './mediaUtils'
 
@@ -14,6 +14,7 @@ interface ChatStreamViewProps {
   hasNewUnreadWhileScrolled: boolean
   scrollToBottom: (behavior?: 'smooth' | 'instant') => void
   onOpenLightbox: (url: string) => void
+  onCancelPendingRequest?: (remoteHandle: string, remoteInstanceUrl?: string) => void
 }
 
 export const ChatStreamView: React.FC<ChatStreamViewProps> = ({
@@ -27,6 +28,7 @@ export const ChatStreamView: React.FC<ChatStreamViewProps> = ({
   hasNewUnreadWhileScrolled,
   scrollToBottom,
   onOpenLightbox,
+  onCancelPendingRequest,
 }) => {
   if (activeConv.status === 'pending') {
     return (
@@ -53,6 +55,24 @@ export const ChatStreamView: React.FC<ChatStreamViewProps> = ({
           <Clock className="w-4 h-4 animate-spin text-amber-500 shrink-0" />
           <span>Waiting for @{activeConv.otherUser.username} to accept your request...</span>
         </div>
+
+        {onCancelPendingRequest && (
+          <div className="w-full pt-1">
+            <button
+              type="button"
+              onClick={() =>
+                onCancelPendingRequest(
+                  activeConv.otherUser.username,
+                  activeConv.remoteInstanceUrl || undefined
+                )
+              }
+              className="w-full py-2.5 px-4 rounded-xl text-xs font-semibold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/60 border border-rose-200/80 dark:border-rose-900/50 transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Cancel Friend Request</span>
+            </button>
+          </div>
+        )}
       </div>
     )
   }

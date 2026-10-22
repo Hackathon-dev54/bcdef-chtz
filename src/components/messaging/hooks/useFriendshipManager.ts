@@ -145,8 +145,48 @@ export function useFriendshipManager({
     }
   }
 
+  // Cancel / Unsend Outgoing Friend Request
+  const handleCancelFriendRequest = async (remoteHandle: string, remoteInstanceUrl?: string) => {
+    const cleanHandle = (remoteHandle || '').replace(/^@/, '').trim().toLowerCase()
+    if (!cleanHandle) return
+
+    try {
+      // 1. Optimistic local cache & state removal
+      setFriendships((prev) => {
+        const updated = prev.filter((f) => f.remote_handle.toLowerCase() !== cleanHandle)
+        saveLocalFriendships(updated).catch(() => {})
+        return updated
+      })
+      setConversations((prev) => {
+        const updated = prev.filter(
+          (c) => c.otherUser.username.toLowerCase() !== cleanHandle && c.id !== 'conv_' + cleanHandle
+        )
+        saveLocalConversations(updated).catch(() => {})
+        return updated
+      })
+      setActiveConv(null)
+
+      // 2. Dispatch cancel request to backend
+      await fetch('/api/federation/requests/cancel', {
+        method: 'POST',
+        headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({
+          remoteHandle: cleanHandle,
+          remoteInstanceUrl: remoteInstanceUrl || undefined,
+          myHandle: currentUser.handle,
+        }),
+      })
+    } catch (err) {
+      console.error('Cancel request error', err)
+    }
+  }
+
   const incomingRequests = useMemo(() => {
     return friendships.filter((f) => f.status === 'pending' && f.direction === 'incoming')
+  }, [friendships])
+
+  const outgoingRequests = useMemo(() => {
+    return friendships.filter((f) => f.status === 'pending' && f.direction === 'outgoing')
   }, [friendships])
 
   return {
@@ -165,6 +205,9 @@ export function useFriendshipManager({
     handleSendFriendRequest,
     handleAcceptFriendRequest,
     handleRejectFriendRequest,
+    handleCancelFriendRequest,
     incomingRequests,
+    outgoingRequests,
   }
 }
+

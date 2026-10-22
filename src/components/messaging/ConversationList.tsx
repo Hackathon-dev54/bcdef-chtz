@@ -1,5 +1,5 @@
 import React from 'react'
-import { MessageSquare, Store } from 'lucide-react'
+import { MessageSquare, Store, X } from 'lucide-react'
 import type { Conversation, InboxFilter } from './types'
 
 interface ConversationListProps {
@@ -8,6 +8,7 @@ interface ConversationListProps {
   setActiveConv: (conv: Conversation) => void
   inboxFilter: InboxFilter
   onOpenConnectContact: () => void
+  onCancelPendingRequest?: (remoteHandle: string, remoteInstanceUrl?: string) => void
 }
 
 export const ConversationList: React.FC<ConversationListProps> = ({
@@ -16,6 +17,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
   setActiveConv,
   inboxFilter,
   onOpenConnectContact,
+  onCancelPendingRequest,
 }) => {
   if (conversations.length === 0) {
     return (
@@ -98,9 +100,27 @@ export const ConversationList: React.FC<ConversationListProps> = ({
                   )}
 
                   {isPending && (
-                    <span className="px-1.5 py-0.5 rounded text-[9px] font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
-                      Pending
-                    </span>
+                    <div className="flex items-center gap-1">
+                      <span className="px-1.5 py-0.5 rounded text-[9px] font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                        Pending
+                      </span>
+                      {onCancelPendingRequest && (
+                        <button
+                          type="button"
+                          title="Cancel / Unsend Request"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            onCancelPendingRequest(
+                              conv.otherUser.username,
+                              conv.remoteInstanceUrl || undefined
+                            )
+                          }}
+                          className="p-0.5 rounded text-zinc-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      )}
+                    </div>
                   )}
                 </div>
               </div>

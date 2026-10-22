@@ -476,6 +476,115 @@ federationRoutes.post('/api/federation/requests/reject', async (c) => {
   }
 })
 
+// Cancel / Unsend Outgoing Friend Request
+federationRoutes.post('/api/federation/requests/cancel', async (c) => {
+  try {
+    const { remoteHandle, remoteInstanceUrl, myHandle } = await c.req.json()
+    const cleanHandle = (remoteHandle || '').replace(/^@/, '').trim().toLowerCase()
+    if (!cleanHandle) {
+      return c.json({ error: 'Remote handle required' }, 400)
+    }
+
+    const db = c.env?.DB
+    let foundUrl = remoteInstanceUrl || ''
+
+    // 1. Clean local memory store
+    for (const [id, f] of memoryStore.friendships) {
+      if (f.remote_handle === cleanHandle) {
+        if (!foundUrl) foundUrl = f.remote_instance_url
+        memoryStore.friendships.delete(id)
+      }
+    }
+    memoryStore.conversations.delete('conv_' + cleanHandle)
+
+    // 2. Clean local D1 database
+    let actualMyHandle = myHandle || ''
+    if (db) {
+      try {
+        await ensureD1Database(db)
+        if (!foundUrl) {
+          const row: any = await db.prepare("SELECT remote_instance_url FROM federation_friendships WHERE remote_handle = ? LIMIT 1").bind(cleanHandle).first()
+          if (row) foundUrl = row.remote_instance_url
+        }
+        await db.prepare("DELETE FROM federation_friendships WHERE remote_handle = ?").bind(cleanHandle).run()
+        await db.prepare("DELETE FROM conversations WHERE id = ?").bind('conv_' + cleanHandle).run()
+        if (!actualMyHandle) {
+          const adminRow: any = await db.prepare("SELECT handle FROM users WHERE role = 'admin' LIMIT 1").first()
+          if (adminRow) actualMyHandle = adminRow.handle
+        }
+      } catch (d1Err: any) {
+        console.warn('[D1 Cancel Request Warning]', d1Err?.message)
+      }
+    }
+    actualMyHandle = actualMyHandle || 'me'
+
+    // 3. Notify remote peer so they drop the incoming request too
+    if (foundUrl) {
+      try {
+        await fetch(`${normalizeUrl(foundUrl)}/api/federation/v1/requests/cancel`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            from_handle: actualMyHandle,
+            timestamp: Date.now(),
+          }),
+        })
+      } catch (dispatchErr: any) {
+        console.warn('[Remote Cancel Dispatch Warning]', dispatchErr?.message)
+      }
+    }
+
+    // 4. Broadcast live deletion event to open browser tabs
+    await broadcastAllStreams('friendship_removed', { remoteHandle: cleanHandle }, c.env)
+
+    return c.json({ success: true, cancelled: true })
+  } catch (err: any) {
+    return c.json({ error: err.message }, 400)
+  }
+})
+
+// Peer cancelled their outgoing request to us
+federationRoutes.post('/api/federation/v1/requests/cancel', async (c) => {
+  try {
+    const { from_handle } = await c.req.json()
+    const cleanHandle = (from_handle || '').replace(/^@/, '').trim().toLowerCase()
+    if (!cleanHandle) {
+      return c.json({ error: 'Sender handle required' }, 400)
+    }
+
+    const db = c.env?.DB
+
+    // 1. Clean from memoryStore
+    for (const [id, f] of memoryStore.friendships) {
+      if (f.remote_handle === cleanHandle && f.direction === 'incoming' && f.status === 'pending') {
+        memoryStore.friendships.delete(id)
+      }
+    }
+    const conv = memoryStore.conversations.get('conv_' + cleanHandle)
+    if (conv && conv.status === 'pending') {
+      memoryStore.conversations.delete('conv_' + cleanHandle)
+    }
+
+    // 2. Clean from D1
+    if (db) {
+      try {
+        await ensureD1Database(db)
+        await db.prepare("DELETE FROM federation_friendships WHERE remote_handle = ? AND direction = 'incoming' AND status = 'pending'").bind(cleanHandle).run()
+        await db.prepare("DELETE FROM conversations WHERE id = ? AND status = 'pending'").bind('conv_' + cleanHandle).run()
+      } catch (d1Err: any) {
+        console.warn('[D1 Inbound Cancel Warning]', d1Err?.message)
+      }
+    }
+
+    // 3. Broadcast to client browser
+    await broadcastAllStreams('friendship_removed', { remoteHandle: cleanHandle }, c.env)
+
+    return c.json({ success: true, status: 'cancelled' })
+  } catch (err: any) {
+    return c.json({ error: err.message }, 400)
+  }
+})
+
 // Block Domain endpoint
 federationRoutes.post('/api/federation/domains/block', async (c) => {
   try {

@@ -25,6 +25,8 @@ interface SidebarHeaderProps {
   pendingInquiryCount: number
   inquiriesCount: number
   totalChatsCount?: number
+  incomingRequestsCount?: number
+  outgoingRequestsCount?: number
   hasLetterboxActivity: boolean
   onOpenConnectContact: () => void
   searchInputRef?: React.RefObject<HTMLInputElement | null>
@@ -42,9 +44,12 @@ export const SidebarHeader: React.FC<SidebarHeaderProps> = ({
   setInboxFilter,
   pendingInquiryCount,
   totalChatsCount = 0,
+  incomingRequestsCount = 0,
+  outgoingRequestsCount = 0,
   onOpenConnectContact,
   searchInputRef,
 }) => {
+  const totalRequestsCount = incomingRequestsCount + outgoingRequestsCount
   return (
     <div className="p-4 sm:p-5 border-b border-zinc-200 dark:border-zinc-800/80 bg-white dark:bg-[#121214] space-y-4 shrink-0 transition-colors select-none">
       {/* 1. Workspace Subtitle & Title */}
@@ -112,11 +117,11 @@ export const SidebarHeader: React.FC<SidebarHeaderProps> = ({
       )}
 
       {/* 3. Filter Pills */}
-      <div className="flex items-center gap-1.5 text-xs">
+      <div className="flex items-center gap-1.5 text-xs overflow-x-auto no-scrollbar pb-0.5">
         <button
           type="button"
           onClick={() => setInboxFilter('all')}
-          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 cursor-pointer ${
+          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 cursor-pointer shrink-0 ${
             inboxFilter === 'all'
               ? 'bg-zinc-900 text-white dark:bg-zinc-800 dark:text-white'
               : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800/50'
@@ -131,7 +136,7 @@ export const SidebarHeader: React.FC<SidebarHeaderProps> = ({
         <button
           type="button"
           onClick={() => setInboxFilter('unread')}
-          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
+          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer shrink-0 ${
             inboxFilter === 'unread'
               ? 'bg-zinc-900 text-white dark:bg-zinc-800 dark:text-white'
               : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800/50'
@@ -143,7 +148,7 @@ export const SidebarHeader: React.FC<SidebarHeaderProps> = ({
         <button
           type="button"
           onClick={() => setInboxFilter('friends')}
-          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
+          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer shrink-0 ${
             inboxFilter === 'friends'
               ? 'bg-zinc-900 text-white dark:bg-zinc-800 dark:text-white'
               : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800/50'
@@ -155,7 +160,7 @@ export const SidebarHeader: React.FC<SidebarHeaderProps> = ({
         <button
           type="button"
           onClick={() => setInboxFilter('letterbox')}
-          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1 cursor-pointer ${
+          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1 cursor-pointer shrink-0 ${
             inboxFilter === 'inquiries' || inboxFilter === 'letterbox'
               ? 'bg-zinc-900 text-white dark:bg-zinc-800 dark:text-white'
               : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800/50'
@@ -165,6 +170,29 @@ export const SidebarHeader: React.FC<SidebarHeaderProps> = ({
           {pendingInquiryCount > 0 && (
             <span className="w-4 h-4 rounded-full bg-purple-500 text-white font-bold text-[9px] flex items-center justify-center">
               {pendingInquiryCount}
+            </span>
+          )}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setInboxFilter('requests')}
+          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 cursor-pointer shrink-0 ${
+            inboxFilter === 'requests' || inboxFilter === 'pending'
+              ? 'bg-zinc-900 text-white dark:bg-zinc-800 dark:text-white'
+              : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800/50'
+          }`}
+        >
+          <span>Requests</span>
+          {totalRequestsCount > 0 && (
+            <span
+              className={`w-4 h-4 rounded-full font-bold text-[9px] flex items-center justify-center ${
+                incomingRequestsCount > 0
+                  ? 'bg-amber-500 text-white'
+                  : 'bg-zinc-200 dark:bg-zinc-700 text-zinc-800 dark:text-zinc-200'
+              }`}
+            >
+              {totalRequestsCount}
             </span>
           )}
         </button>

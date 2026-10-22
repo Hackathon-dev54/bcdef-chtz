@@ -23,6 +23,7 @@ import {
   IncomingRequestsBanner,
   InquiriesFeed,
   ConversationList,
+  RequestsFeed,
   ChatHeader,
   ChatStreamView,
   ChatComposer,
@@ -151,7 +152,9 @@ export function MessagingApp({
     handleSendFriendRequest,
     handleAcceptFriendRequest,
     handleRejectFriendRequest,
+    handleCancelFriendRequest,
     incomingRequests,
+    outgoingRequests,
   } = useFriendshipManager({
     currentUser,
     friendships,
@@ -212,6 +215,9 @@ export function MessagingApp({
       if (params.get('tab') === 'inquiries' || params.get('tab') === 'letterbox') {
         setInboxFilter('letterbox')
       }
+      if (params.get('tab') === 'requests') {
+        setInboxFilter('requests')
+      }
     }
   }, [])
 
@@ -221,7 +227,7 @@ export function MessagingApp({
         c.otherUser.displayName.toLowerCase().includes(searchQuery.toLowerCase()) ||
         c.otherUser.username.toLowerCase().includes(searchQuery.toLowerCase())
       if (!matchesSearch) return false
-      if (inboxFilter === 'pending') return c.status === 'pending'
+      if (inboxFilter === 'pending' || inboxFilter === 'requests') return c.status === 'pending'
       if (inboxFilter === 'unread') return (c.unreadCount || 0) > 0
       if (inboxFilter === 'friends') return c.status !== 'letterbox'
       if (inboxFilter === 'letterbox') return c.status === 'letterbox'
@@ -309,21 +315,41 @@ export function MessagingApp({
                 pendingInquiryCount={pendingInquiryCount}
                 inquiriesCount={inquiries.length}
                 totalChatsCount={conversations.length}
+                incomingRequestsCount={incomingRequests.length}
+                outgoingRequestsCount={outgoingRequests.length}
                 hasLetterboxActivity={hasLetterboxActivity}
                 onOpenConnectContact={() => setShowAddFriendModal(true)}
                 searchInputRef={searchInputRef}
               />
 
-              {/* Incoming Connection Requests Banner */}
-              <IncomingRequestsBanner
-                incomingRequests={incomingRequests}
-                handleAcceptFriendRequest={handleAcceptFriendRequest}
-                handleRejectFriendRequest={handleRejectFriendRequest}
-              />
+              {/* Incoming Connection Requests Banner (hidden on requests tab) */}
+              {inboxFilter !== 'requests' && (
+                <IncomingRequestsBanner
+                  incomingRequests={incomingRequests}
+                  handleAcceptFriendRequest={handleAcceptFriendRequest}
+                  handleRejectFriendRequest={handleRejectFriendRequest}
+                />
+              )}
 
-              {/* Chats or Inquiries Feed */}
+              {/* Chats, Inquiries, or Requests Feed */}
               <div className="flex-1 overflow-y-auto divide-y divide-zinc-100 dark:divide-zinc-800/40">
-                {inboxFilter === 'letterbox' || inboxFilter === 'inquiries' ? (
+                {inboxFilter === 'requests' ? (
+                  <RequestsFeed
+                    incomingRequests={incomingRequests}
+                    outgoingRequests={outgoingRequests}
+                    conversations={conversations}
+                    activeConv={activeConv}
+                    setActiveConv={(conv) => {
+                      setIsSettingsOpen(false)
+                      setActiveConv(conv)
+                    }}
+                    handleAcceptFriendRequest={handleAcceptFriendRequest}
+                    handleRejectFriendRequest={handleRejectFriendRequest}
+                    handleCancelFriendRequest={handleCancelFriendRequest}
+                    onOpenConnectContact={() => setShowAddFriendModal(true)}
+                    searchQuery={searchQuery}
+                  />
+                ) : inboxFilter === 'letterbox' || inboxFilter === 'inquiries' ? (
                   <InquiriesFeed
                     accountType={accountType}
                     currentUser={currentUser}
@@ -350,6 +376,7 @@ export function MessagingApp({
                     }}
                     inboxFilter={inboxFilter}
                     onOpenConnectContact={() => setShowAddFriendModal(true)}
+                    onCancelPendingRequest={handleCancelFriendRequest}
                   />
                 )}
               </div>
@@ -395,6 +422,7 @@ export function MessagingApp({
                     hasNewUnreadWhileScrolled={hasNewUnreadWhileScrolled}
                     scrollToBottom={scrollToBottom}
                     onOpenLightbox={(url) => setLightboxUrl(url)}
+                    onCancelPendingRequest={handleCancelFriendRequest}
                   />
 
                   {/* Message Composer */}
